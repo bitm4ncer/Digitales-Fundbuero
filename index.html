@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Digitales Fundbüro — Verlorenes &amp; Gefundenes</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="seite">
+
+    <!-- Kopf: Wortmarke + Maskottchen -->
+    <header class="kopf">
+      <div class="kopfInnen">
+        <img class="lupe" src="assets/lupe.svg" width="46" height="46" alt="Fundbüro-Lupe">
+        <div class="wortmarke">
+          <div class="wortmarkeKlein">D I G I T A L E S</div>
+          <div class="wortmarkeGross">FUNDBÜRO</div>
+        </div>
+        <span class="sticker">DAS ORIGINAL! ★</span>
+      </div>
+      <div class="sprechblase">💬 „Hi, ich bin Fundbüro!"</div>
+    </header>
+
+    <div class="ticker">★ Willkommen! Eintragen dauert 10 Sekunden — 100% kostenlos! ★</div>
+
+    <div id="statusHinweis" class="statusHinweis" hidden></div>
+
+    <main class="layout">
+
+      <!-- Feed-Spalte -->
+      <section class="feedSpalte">
+
+        <div id="filterBar" class="filterBar">
+          <button type="button" class="pill pillAktiv" data-filter="alle">Alle (0)</button>
+          <button type="button" class="pill" data-filter="verloren">Verloren (0)</button>
+          <button type="button" class="pill" data-filter="gefunden">Gefunden (0)</button>
+          <button type="button" id="aktualisieren" class="pill pillAktion">🔄 Aktualisieren</button>
+        </div>
+
+        <div id="feedListe" class="feedListe"></div>
+
+        <div id="feedLeer" class="feedLeer" hidden>
+          <img src="assets/lupe.svg" width="48" height="48" alt="">
+          <p>„Ich habe noch nichts gefunden … Meldest du was?"</p>
+        </div>
+
+        <!-- Composer -->
+        <form id="composer" class="composer" novalidate>
+          <h2 class="composerTitel">Was hast DU verloren?</h2>
+
+          <div class="artPills" role="group" aria-label="Art der Meldung">
+            <button type="button" class="artPill" data-art="verloren" aria-pressed="true">● VERLOREN</button>
+            <button type="button" class="artPill" data-art="gefunden" aria-pressed="false">○ GEFUNDEN</button>
+          </div>
+
+          <div class="composerZeile">
+            <input id="eingabeName" class="composerFeld" type="text" maxlength="60" placeholder="Name (freiwillig)" aria-label="Name (freiwillig)">
+            <input id="eingabeKontakt" class="composerFeld" type="text" maxlength="200" placeholder="Kontakt (freiwillig)" aria-label="Kontakt (freiwillig)">
+          </div>
+
+          <textarea id="eingabeText" class="composerFeld composerText" maxlength="500" placeholder="Gegenstand und Fundort beschreiben …" aria-label="Gegenstand und Fundort"></textarea>
+          <div class="textFuss"><span id="zeichenZaehler" class="zeichenZaehler">0/500</span></div>
+
+          <div id="tastatur" class="tastatur" aria-label="Bildschirmtastatur"></div>
+
+          <div id="standortBlock" class="standortBlock">
+            <div class="standortKopf">📍 Standort (optional)</div>
+            <div class="modusPills" role="group" aria-label="Standort-Modus">
+              <button type="button" id="btnPunkt" class="modusPill" aria-pressed="false">🎯 Genauer Punkt</button>
+              <button type="button" id="btnBereich" class="modusPill" aria-pressed="true">⭕ Bereich</button>
+            </div>
+            <div id="mapMini" class="mapMini"></div>
+            <div class="radiusZeile">
+              <label for="radius">Radius:</label>
+              <input id="radius" type="range" min="50" max="1000" step="50" value="300">
+              <span id="radiusVal">ca. 300 m</span>
+            </div>
+            <div class="standortTipp">Tipp: „Bereich" statt genauer Punkt — so bleibt dein genauer Ort privat.</div>
+          </div>
+
+          <div class="composerFuss">
+            <button type="submit" id="btnAbsenden" class="btnAbsenden">JETZT EINTRAGEN!</button>
+          </div>
+          <div id="formStatus" class="formStatus" role="status" aria-live="polite"></div>
+          <div class="composerKlein">* Eintragen ist kostenlos. Wiederfinden nicht garantiert. ;-)</div>
+        </form>
+
+      </section>
+
+      <!-- Karten-Sidebar (wird in Task 6 initialisiert) -->
+      <aside id="mapBox" class="mapBox">
+        <button type="button" id="mapToggle" class="mapToggle" aria-expanded="true">🗺️ Karte anzeigen</button>
+        <div class="karteFenster">
+          <div class="karteKopf">
+            <span class="karteTitel">🗺️ Karte der Fundstücke</span>
+            <span class="pinZaehler">0 Pins</span>
+          </div>
+          <div id="mapSidebar" class="mapSidebar"></div>
+          <div class="karteFuss">
+            <span>🔴 Verloren · 🟢 Gefunden</span>
+            <span>© OpenStreetMap-Mitwirkende</span>
+          </div>
+        </div>
+        <div class="stickyHinweis">📌 <b>sticky:</b> bleibt beim Scrollen stehen — Pin anklicken zeigt das Popup.</div>
+      </aside>
+
+    </main>
+
+    <footer class="fuss">© 2003–2026 Digitales Fundbüro · <a href="impressum.html">Impressum</a> · <a href="datenschutz.html">Datenschutz</a> · Du bist Besucher Nr. 0044711</footer>
+
+  </div>
+
+  <!-- Vorlage für eine Feed-Karte (wird von app.js geklont) -->
+  <template id="tplMeldung">
+    <article class="meldung">
+      <span class="badge"></span>
+      <div class="meldungInhalt">
+        <b class="meldungText"></b>
+        <div class="meldungMeta">
+          <span class="meldungNr"></span> · <span class="meldungVon"></span> · <span class="meldungDatum"></span>
+          <span class="neuChip" hidden>NEU!</span>
+        </div>
+      </div>
+    </article>
+  </template>
+
+  <script src="config.js"></script>
+  <script src="logic.js"></script>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

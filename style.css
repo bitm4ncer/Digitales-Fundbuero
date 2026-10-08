@@ -1,0 +1,658 @@
+/* =========================================================
+   Digitales Fundbüro — Look-Rahmen (Y2K-Gloss, Stadtblau)
+   Palette & Layout nach docs/design-references/sidebar.html
+   ========================================================= */
+
+:root {
+  --tiefblau: #1a3e6e;
+  --aktion: #2a68c4;
+  --navy: #0f3d80;
+  --blau-hell: #dfeaff;
+  --blau-panel: #eef6ff;
+  --blau-rand: #b9cdea;
+  --blau-rand2: #9db8dd;
+  --blau-text: #123a75;
+  --blau-meta: #5b6c86;
+  --gelb: #ffd200;
+  --gelb-dunkel: #f7b400;
+  --gelb-braun: #6b4a00;
+  --rot1: #ff8a80;
+  --rot2: #e0342a;
+  --gruen1: #7ee08a;
+  --gruen2: #1fa53c;
+  --verlauf-blau: linear-gradient(180deg, #4b8de0, #1d5eb8 60%, #164a96);
+  --verlauf-gelb: linear-gradient(#ffe25e, #f7b400);
+  --wortmarke: 'Arial Rounded MT Bold', 'Arial Black', Arial, sans-serif;
+}
+
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+
+html, body { margin: 0; padding: 0; }
+
+body {
+  background: var(--navy);
+  color: var(--blau-text);
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: 13px;
+}
+
+button, input, textarea { font-family: inherit; }
+
+button:focus-visible, input:focus-visible, textarea:focus-visible {
+  outline: 2px solid var(--aktion);
+  outline-offset: 1px;
+}
+
+/* ---------- Seite ---------- */
+
+.seite {
+  max-width: 1100px;
+  min-height: 100vh;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--blau-hell);
+  background-image: radial-gradient(#ffffffcc 1px, transparent 1.5px);
+  background-size: 14px 14px;
+  box-shadow: 0 0 60px rgba(0, 0, 0, .5);
+}
+
+/* ---------- Kopf ---------- */
+
+.kopf {
+  background: var(--verlauf-blau);
+  border-bottom: 4px solid var(--gelb);
+  padding: 14px 14px 10px;
+  text-align: center;
+}
+
+.kopfInnen {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.lupe { flex-shrink: 0; }
+
+.wortmarke { text-align: left; }
+
+.wortmarkeKlein {
+  font-size: 8px;
+  letter-spacing: 5px;
+  color: #bcd9ff;
+  font-weight: bold;
+}
+
+.wortmarkeGross {
+  font-family: var(--wortmarke);
+  font-weight: 900;
+  font-style: italic;
+  font-size: 30px;
+  line-height: 1;
+  color: #fff;
+  text-shadow: 0 2px 0 #0b3a78, 0 4px 8px rgba(0, 0, 0, .3);
+}
+
+.sticker {
+  transform: rotate(10deg);
+  background: var(--gelb);
+  border: 2px solid #fff;
+  border-radius: 9px;
+  padding: 2px 7px;
+  font-size: 9px;
+  font-weight: bold;
+  color: var(--gelb-braun);
+  box-shadow: 0 2px 0 #b58900;
+  white-space: nowrap;
+}
+
+.sprechblase {
+  display: inline-block;
+  margin-top: 6px;
+  background: #fff;
+  border-radius: 999px;
+  padding: 3px 12px;
+  font-size: 12px;
+  font-weight: bold;
+  color: var(--blau-text);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, .25);
+}
+
+/* ---------- Ticker + Hinweis ---------- */
+
+.ticker {
+  background: linear-gradient(var(--gelb), var(--gelb-dunkel));
+  padding: 4px 10px;
+  text-align: center;
+  font-size: 11px;
+  font-weight: bold;
+  color: var(--gelb-braun);
+}
+
+.statusHinweis {
+  margin: 10px 10px 0;
+  background: #fffbe0;
+  border: 1px solid #d9c46b;
+  border-radius: 10px;
+  padding: 8px 12px;
+  text-align: center;
+  font-size: 12px;
+  font-weight: bold;
+  color: var(--gelb-braun);
+}
+
+/* ---------- Layout: Feed links, Karte rechts ---------- */
+
+.layout {
+  flex: 1;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 360px;
+  gap: 16px;
+  align-items: start;
+  padding: 12px 10px;
+}
+
+.feedSpalte { min-width: 0; }
+
+/* ---------- Filter-Pills ---------- */
+
+.filterBar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-bottom: 8px;
+}
+
+.pill {
+  font-size: 11px;
+  font-weight: bold;
+  color: var(--aktion);
+  background: linear-gradient(#fff, #e8f1ff);
+  border: 1px solid var(--blau-rand2);
+  border-radius: 999px;
+  padding: 4px 12px;
+  cursor: pointer;
+}
+
+.pillAktiv {
+  background: var(--verlauf-gelb);
+  border: 2px solid #fff;
+  padding: 3px 11px;
+  color: var(--gelb-braun);
+  box-shadow: 0 2px 0 #b58900;
+}
+
+.pillAktion { margin-left: auto; }
+
+/* ---------- Feed ---------- */
+
+.feedListe {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.meldung {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  background: #fff;
+  border: 1px solid var(--blau-rand);
+  border-radius: 10px;
+  padding: 8px 10px;
+  box-shadow: 0 2px 4px rgba(21, 58, 120, .1);
+}
+
+.badge {
+  flex-shrink: 0;
+  color: #fff;
+  font-size: 9px;
+  font-weight: bold;
+  border-radius: 999px;
+  padding: 2px 9px;
+}
+
+.badge.verloren {
+  background: linear-gradient(var(--rot1), var(--rot2));
+  box-shadow: inset 0 1px 0 #ffd0cb;
+}
+
+.badge.gefunden {
+  background: linear-gradient(var(--gruen1), var(--gruen2));
+  box-shadow: inset 0 1px 0 #c9f5cf;
+}
+
+.meldungInhalt {
+  flex: 1;
+  min-width: 0;
+}
+
+.meldungText { color: var(--blau-text); }
+
+.meldungMeta {
+  margin-top: 2px;
+  font-size: 11px;
+  color: var(--blau-meta);
+}
+
+.meldungNr {
+  color: #1d5eb8;
+  font-weight: bold;
+}
+
+.neuChip {
+  margin-left: 4px;
+  background: var(--gelb);
+  color: var(--gelb-braun);
+  font-size: 9px;
+  font-weight: bold;
+  border-radius: 999px;
+  padding: 1px 7px;
+}
+
+.feedLeer {
+  margin-top: 8px;
+  padding: 22px 12px;
+  text-align: center;
+  background: #fff;
+  border: 1px dashed var(--blau-rand2);
+  border-radius: 10px;
+  color: var(--blau-meta);
+}
+
+.feedLeer img { opacity: .85; }
+
+.feedLeer p { margin: 8px 0 0; }
+
+/* ---------- Composer ---------- */
+
+.composer {
+  margin-top: 10px;
+  background: linear-gradient(#eef6ff, #d9e9ff);
+  border: 1px solid var(--blau-rand2);
+  border-radius: 10px;
+  padding: 10px;
+}
+
+.composerTitel {
+  margin: 0 0 6px;
+  font-family: var(--wortmarke);
+  font-size: 15px;
+  color: var(--blau-text);
+  text-align: center;
+}
+
+.artPills {
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+  margin: 6px 0;
+}
+
+.artPill {
+  font-size: 10px;
+  font-weight: bold;
+  color: #8aa0c0;
+  background: #fff;
+  border: 1px solid var(--blau-rand);
+  border-radius: 999px;
+  padding: 4px 14px;
+  cursor: pointer;
+}
+
+.artPill[data-art="verloren"][aria-pressed="true"] {
+  color: #fff;
+  background: linear-gradient(var(--rot1), var(--rot2));
+  border-color: var(--rot2);
+  box-shadow: inset 0 1px 0 #ffd0cb;
+}
+
+.artPill[data-art="gefunden"][aria-pressed="true"] {
+  color: #fff;
+  background: linear-gradient(var(--gruen1), var(--gruen2));
+  border-color: var(--gruen2);
+  box-shadow: inset 0 1px 0 #c9f5cf;
+}
+
+.composerZeile {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+.composerFeld {
+  flex: 1;
+  min-width: 0;
+  width: 100%;
+  background: #fff;
+  border: 2px solid var(--blau-rand);
+  border-radius: 8px;
+  padding: 5px 9px;
+  font-size: 12px;
+  color: var(--blau-text);
+}
+
+.composerFeld::placeholder { color: #9aaec9; }
+
+.composerText {
+  display: block;
+  min-height: 64px;
+  resize: vertical;
+}
+
+.textFuss {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 2px;
+}
+
+.zeichenZaehler {
+  font-size: 10px;
+  color: #7d90ad;
+}
+
+/* ---------- Tastatur-Grundstyle (Tasten erzeugt app.js) ---------- */
+
+.tastatur {
+  display: grid;
+  grid-template-columns: repeat(9, 1fr);
+  gap: 3px;
+  margin-top: 6px;
+}
+
+.tastatur button {
+  font-size: 11px;
+  font-weight: bold;
+  color: #1d5eb8;
+  background: linear-gradient(#fff, #dce8fa);
+  border: 1px solid #93b1d9;
+  border-bottom-width: 2px;
+  border-radius: 6px;
+  padding: 5px 0;
+  cursor: pointer;
+}
+
+.tastatur button:active {
+  background: linear-gradient(#c9dbf2, #e8f1ff);
+  box-shadow: inset 0 3px 4px rgba(18, 58, 117, .35);
+}
+
+.tastatur button.tasteUmlaut {
+  color: #8a6d00;
+  background: linear-gradient(#fffbe0, #ffec9e);
+  border-color: #d9c46b;
+}
+
+.tastatur button.tasteSatz {
+  color: #44546a;
+  background: linear-gradient(#f1f4f9, #d5deea);
+  border-color: #9fb0c6;
+}
+
+.tastatur button.tasteLoesch {
+  color: #8f2318;
+  background: linear-gradient(#ffe3e0, #ffb8b0);
+  border-color: #d98f86;
+}
+
+.tastatur button.tasteLeer {
+  grid-column: span 9;
+  letter-spacing: 3px;
+}
+
+/* ---------- Standort im Formular ---------- */
+
+.standortBlock {
+  margin-top: 8px;
+  padding: 8px;
+  background: rgba(255, 255, 255, .55);
+  border: 1px solid var(--blau-rand);
+  border-radius: 8px;
+}
+
+.standortKopf {
+  margin-bottom: 6px;
+  font-size: 11px;
+  font-weight: bold;
+  color: var(--blau-text);
+}
+
+.modusPills {
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+.modusPill {
+  font-size: 11px;
+  font-weight: bold;
+  color: var(--aktion);
+  background: linear-gradient(#fff, #e8f1ff);
+  border: 1px solid var(--blau-rand2);
+  border-radius: 999px;
+  padding: 4px 14px;
+  cursor: pointer;
+}
+
+.modusPill[aria-pressed="true"] {
+  color: var(--gelb-braun);
+  background: var(--verlauf-gelb);
+  border: 2px solid #fff;
+  padding: 3px 13px;
+  box-shadow: 0 2px 0 #b58900;
+}
+
+.mapMini {
+  height: 200px;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #e8f1ff;
+  filter: saturate(.9) sepia(.12) contrast(1.02);
+}
+
+.radiusZeile {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+  font-size: 11px;
+  color: var(--blau-text);
+}
+
+.radiusZeile input[type="range"] { flex: 1; }
+
+#radiusVal {
+  min-width: 70px;
+  font-weight: bold;
+}
+
+.standortTipp {
+  margin-top: 4px;
+  font-size: 10px;
+  color: var(--blau-meta);
+}
+
+/* ---------- Absenden + Status ---------- */
+
+.composerFuss {
+  margin-top: 8px;
+  text-align: center;
+}
+
+.btnAbsenden {
+  font-size: 13px;
+  font-weight: bold;
+  color: var(--gelb-braun);
+  background: var(--verlauf-gelb);
+  border: 2px solid #fff;
+  border-radius: 999px;
+  padding: 6px 20px;
+  cursor: pointer;
+  box-shadow: 0 2px 0 #b58900, inset 0 1px 0 #fff7cc;
+}
+
+.btnAbsenden:disabled {
+  opacity: .6;
+  cursor: wait;
+}
+
+.formStatus {
+  min-height: 14px;
+  margin-top: 5px;
+  text-align: center;
+  font-size: 11px;
+  font-weight: bold;
+  color: #b00000;
+}
+
+.formStatus.ok { color: var(--gruen2); }
+
+.composerKlein {
+  margin-top: 4px;
+  text-align: center;
+  font-size: 9px;
+  color: #7d90ad;
+}
+
+/* ---------- Karten-Sidebar ---------- */
+
+.mapBox {
+  position: sticky;
+  top: 16px;
+  align-self: start;
+}
+
+.karteFenster {
+  background: #fff;
+  border: 1px solid var(--blau-rand2);
+  border-radius: 10px;
+  overflow: hidden;
+  box-shadow: 0 3px 8px rgba(21, 58, 120, .25);
+}
+
+.karteKopf {
+  display: flex;
+  align-items: center;
+  background: var(--verlauf-blau);
+  border-bottom: 3px solid var(--gelb);
+  padding: 7px 10px;
+}
+
+.karteTitel {
+  font-size: 13px;
+  font-weight: bold;
+  color: #fff;
+  text-shadow: 0 1px 0 #0b3a78;
+}
+
+.pinZaehler {
+  margin-left: auto;
+  background: var(--gelb);
+  color: var(--gelb-braun);
+  font-size: 10px;
+  font-weight: bold;
+  border-radius: 999px;
+  padding: 1px 8px;
+}
+
+.mapSidebar {
+  height: 392px;
+  background: #e8f1ff;
+  filter: saturate(.9) sepia(.12) contrast(1.02);
+}
+
+.karteFuss {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  background: var(--blau-panel);
+  padding: 4px 9px;
+  font-size: 10px;
+  color: #44546a;
+}
+
+.mapToggle {
+  display: none;
+  width: 100%;
+  margin-bottom: 8px;
+  padding: 8px 12px;
+  font-size: 13px;
+  font-weight: bold;
+  color: var(--blau-text);
+  background: linear-gradient(#eef6ff, #d9e9ff);
+  border: 1px solid var(--blau-rand2);
+  border-radius: 10px;
+  cursor: pointer;
+}
+
+.stickyHinweis {
+  margin-top: 6px;
+  padding: 6px 8px;
+  background: #fff;
+  border: 1px dashed var(--blau-rand2);
+  border-radius: 8px;
+  font-size: 10px;
+  color: #44546a;
+}
+
+/* ---------- Leaflet: Font-Override für Popups ---------- */
+
+.leaflet-container {
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+.leaflet-popup-content {
+  margin: 10px 12px;
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: 12px;
+  color: var(--blau-text);
+}
+
+.leaflet-popup-content-wrapper { border-radius: 10px; }
+
+/* ---------- Fuß ---------- */
+
+.fuss {
+  margin-top: 10px;
+  background: var(--navy);
+  color: #bcd9ff;
+  padding: 7px 12px;
+  text-align: center;
+  font-size: 10px;
+}
+
+.fuss a { color: #bcd9ff; }
+
+/* ---------- Mobil (≤ 860px): einspaltig, Karte oben einklappbar ---------- */
+
+@media (max-width: 860px) {
+  .layout {
+    grid-template-columns: 1fr;
+  }
+
+  #mapBox {
+    position: static;
+    order: -1;
+  }
+
+  #mapToggle { display: block; }
+
+  #mapBox.zu .karteFenster { display: none; }
+
+  .stickyHinweis { display: none; }
+
+  .mapSidebar { height: 280px; }
+
+  .mapMini { height: 180px; }
+}
+
+@media (max-width: 480px) {
+  .wortmarkeGross { font-size: 24px; }
+  .composerZeile { flex-direction: column; }
+  .karteFuss { flex-direction: column; gap: 0; }
+}
