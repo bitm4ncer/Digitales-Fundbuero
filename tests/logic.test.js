@@ -39,7 +39,7 @@ test('insertFuerText: Einfügen, Ersetzen, Mehrzeichen', () => {
 
 test('loescheZurueck: löscht Auswahl oder Zeichen davor', () => {
   assert.deepEqual(L.loescheZurueck('Hallo', 5, 5), { text: 'Hall', pos: 4 });
-  assert.deepEqual(L.loescheZurueck('Hallo', 2, 4), { text: 'Hlo', pos: 2 });
+  assert.deepEqual(L.loescheZurueck('Hallo', 2, 4), { text: 'Hao', pos: 2 });
   assert.deepEqual(L.loescheZurueck('Hallo', 0, 0), { text: 'Hallo', pos: 0 });
 });
 

@@ -101,27 +101,20 @@
     };
   }
 
-  // Backspace: ohne Auswahl wird das Zeichen vor `start` gelöscht.
-  // Mit Auswahl löscht die Spec den Bereich [start-1, ende-1) und setzt den Cursor auf `start`
-  // (exakt per Task-1-Test: ('Hallo', 2, 4) -> { text: 'Hlo', pos: 2 }).
+  // Backspace: mit Auswahl wird [start, ende) gelöscht, ohne Auswahl das Zeichen vor `start`.
   function loescheZurueck(text, start, ende) {
     var quelle = String(text == null ? '' : text);
-    var laenge = quelle.length;
-    var s = begrenzePosition(start, laenge);
-    var e = begrenzePosition(ende, laenge);
-    if (e < s) { var t = s; s = e; e = t; }
-    if (e > s) {
-      var von = Math.max(0, s - 1);
-      var bis = Math.max(0, e - 1);
+    var bereich = normalisiereBereich(quelle, start, ende);
+    if (bereich.ende > bereich.start) {
       return {
-        text: quelle.slice(0, von) + quelle.slice(bis),
-        pos: s
+        text: quelle.slice(0, bereich.start) + quelle.slice(bereich.ende),
+        pos: bereich.start
       };
     }
-    if (s > 0) {
+    if (bereich.start > 0) {
       return {
-        text: quelle.slice(0, s - 1) + quelle.slice(s),
-        pos: s - 1
+        text: quelle.slice(0, bereich.start - 1) + quelle.slice(bereich.start),
+        pos: bereich.start - 1
       };
     }
     return { text: quelle, pos: 0 };
