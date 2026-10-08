@@ -1,12 +1,13 @@
 /* =========================================================
    Digitales Fundbüro — app.js
-   Ausbaustufe Task 4: Feed-Liste (Task 3) + Composer mit
-   anklickbarer Tastatur, Zeichenzähler, Art-Pills und Validierung.
-   Senden folgt in Task 5, Standort in Task 7.
+   Ausbaustufe Task 5: echter geteilter Feed über Supabase
+   (laden, posten, Fehlerpfade) — dazu Feed-Liste (Task 3)
+   und Composer mit Tastatur/Validierung (Task 4).
+   Standort im Formular folgt in Task 7.
 
    Abschnitte:
    1. State
-   2. Demo-Daten (wird in Task 5 durch Supabase-fetch ersetzt)
+   2. Supabase (Konfiguration, Laden, Senden)
    3. Rendering
    4. Events
    5. Init
@@ -21,6 +22,9 @@
 // filter: 'alle' | 'verloren' | 'gefunden'
 // composer: Eingaben des Formulars; standort füllt Task 7.
 const state = { meldungen: [], filter: 'alle', composer: { art: 'verloren', standort: null } };
+
+// sendet: Reentrancy-Guard — während eines laufenden POST ist der Absende-Button gesperrt.
+let sendet = false;
 
 const FILTER_WERTE = ['alle', 'verloren', 'gefunden'];
 const EIN_TAG_MS = 24 * 60 * 60 * 1000; // Fenster für das NEU!-Chip
@@ -42,64 +46,113 @@ const TASTE_LOESCHEN = '⌫';
 const UMLAUTE = ['Ä', 'Ö', 'Ü', 'ß'];
 const SATZZEICHEN = ['.', ',', '?', '!'];
 
-/* ---------- 2. Demo-Daten ---------- */
+/* ---------- 2. Supabase (Konfiguration, Laden, Senden) ---------- */
 
-// ISO-Zeitstempel "vor x Stunden" — so ist nur Mia jünger als 24 h.
-function vorStunden(stunden) {
-  return new Date(Date.now() - stunden * 60 * 60 * 1000).toISOString();
+// Fenster-Konfiguration aus config.js — fehlt sie ganz, ist das Amt zu.
+function konfiguration() {
+  return (typeof window !== 'undefined' && window.FUNDBUERO_CONFIG) ? window.FUNDBUERO_CONFIG : {};
 }
 
-// Dieselben 4 Meldungen wie im Mockup / docs/supabase-setup.sql.
-// Feldnamen = spätere DB-Spalten (id, created_at, art, text, name,
-// kontakt, lat, lng, radius_m). Zeitstempel relativ zu "jetzt":
-// Mia 3 h (NEU!), Jonas 26 h (~1 Tag), Fundbüro 50 h (~2 Tage),
-// Anonym 74 h (~3 Tage).
-const DEMO_MELDUNGEN = [
-  {
-    id: 42,
-    created_at: vorStunden(3),
-    art: 'verloren',
-    text: 'Glücks-Fuchsschwanz, zuletzt beim Skatepark gesehen. Pink, mit goldenem Ring.',
-    name: 'Mia',
-    kontakt: 'mia@web.de',
-    lat: 48.1393,
-    lng: 11.5765,
-    radius_m: null
-  },
-  {
-    id: 41,
-    created_at: vorStunden(26),
-    art: 'gefunden',
-    text: 'Silberner Discman, liegengeblieben in Bus 123, Sitzreihe hinten.',
-    name: 'Jonas',
-    kontakt: 'jonas@web.de',
-    lat: 48.1355,
-    lng: 11.5820,
-    radius_m: 300
-  },
-  {
-    id: 40,
-    created_at: vorStunden(50),
-    art: 'gefunden',
-    text: 'Ein Handschuh (links), in der Turnhalle abgegeben.',
-    name: 'Fundbüro',
-    kontakt: null,
-    lat: 48.1366,
-    lng: 11.5697,
-    radius_m: null
-  },
-  {
-    id: 39,
-    created_at: vorStunden(74),
-    art: 'verloren',
-    text: 'Schwarze Mütze, U-Bahn',
-    name: null,
-    kontakt: null,
-    lat: 48.1402,
-    lng: 11.5810,
-    radius_m: null
+// Project-URL ohne trailing slash: "https://x.supabase.co/" = "https://x.supabase.co".
+function supabaseBasis() {
+  const url = konfiguration().supabaseUrl;
+  return String(url == null ? '' : url).trim().replace(/\/+$/, '');
+}
+
+function supabaseAnon() {
+  const key = konfiguration().supabaseAnonKey;
+  return String(key == null ? '' : key).trim();
+}
+
+// Beide Config-Werte müssen nicht leer sein, sonst bleibt das Amt "nicht angeschlossen".
+function istKonfiguriert() {
+  return supabaseBasis() !== '' && supabaseAnon() !== '';
+}
+
+// Header für alle REST-Aufrufe; zusatz trägt POST-spezifische Felder bei.
+function supabaseHeader(zusatz) {
+  const kopf = {
+    apikey: supabaseAnon(),
+    Authorization: 'Bearer ' + supabaseAnon()
+  };
+  const extraFelder = zusatz || {};
+  Object.keys(extraFelder).forEach(function (name) { kopf[name] = extraFelder[name]; });
+  return kopf;
+}
+
+// HTTP-Fehler tragen den Status; Netz-/Parse-Fehler (z. B. TypeError) nicht.
+function httpFehler(status) {
+  const fehler = new Error('HTTP ' + status);
+  fehler.status = status;
+  return fehler;
+}
+
+function statusAus(fehler) {
+  return fehler && typeof fehler.status === 'number' ? fehler.status : null;
+}
+
+// Banner über dem Layout: Unkonfiguriert-Hinweis und Ladefehler.
+function zeigeStatusHinweis(nachricht) {
+  const hinweis = document.getElementById('statusHinweis');
+  if (!hinweis) { return; }
+  hinweis.textContent = nachricht;
+  hinweis.hidden = false;
+}
+
+function versteckeStatusHinweis() {
+  const hinweis = document.getElementById('statusHinweis');
+  if (!hinweis) { return; }
+  hinweis.hidden = true;
+}
+
+// Task 5: GET der neuesten 200 Meldungen. Unkonfiguriert → Hinweis statt
+// Karten; Fehler landen in #statusHinweis (kein Absturz, kein leerer Screen).
+function ladeMeldungen() {
+  if (!istKonfiguriert()) {
+    state.meldungen = [];
+    renderFeed();
+    zeigeStatusHinweis('Das Amt ist noch nicht angeschlossen … Bald geht\'s los!');
+    return Promise.resolve();
   }
-];
+
+  return fetch(supabaseBasis() + '/rest/v1/meldungen?select=*&order=id.desc&limit=200', {
+    headers: supabaseHeader()
+  }).then(function (antwort) {
+    if (!antwort.ok) { throw httpFehler(antwort.status); }
+    return antwort.json();
+  }).then(function (daten) {
+    state.meldungen = Array.isArray(daten) ? daten : [];
+    versteckeStatusHinweis();
+    renderFeed();
+  }).catch(function (fehler) {
+    zeigeStatusHinweis(FundbueroLogik.fehlerText(statusAus(fehler)));
+  });
+}
+
+// Task 5: POST einer validierten Meldung. Body exakt art, text, name,
+// kontakt, lat, lng, radius_m — leere Optionals und fehlender Standort
+// (Task 7) sind null. Prefer: return=minimal, Antwort hat keinen Body.
+function postMeldung(daten) {
+  const standort = state.composer.standort;
+  const koerper = {
+    art: daten.art,
+    text: daten.text,
+    name: daten.name,
+    kontakt: daten.kontakt,
+    lat: standort ? standort.lat : null,
+    lng: standort ? standort.lng : null,
+    radius_m: standort ? standort.radius_m : null
+  };
+
+  return fetch(supabaseBasis() + '/rest/v1/meldungen', {
+    method: 'POST',
+    headers: supabaseHeader({ 'Content-Type': 'application/json', Prefer: 'return=minimal' }),
+    body: JSON.stringify(koerper)
+  }).then(function (antwort) {
+    if (!antwort.ok) { throw httpFehler(antwort.status); }
+    return null;
+  });
+}
 
 /* ---------- 3. Rendering ---------- */
 
@@ -314,8 +367,48 @@ function zeigeFormStatus(nachricht, ok) {
   status.classList.toggle('ok', !!ok);
 }
 
-// Task 4: nur validieren und Fehler zeigen — noch kein Senden.
+// Task 5: Button während eines laufenden POST sperren (Doppelklick-Guard).
+function setzeSendeZustand(aktiv) {
+  sendet = aktiv;
+  const button = document.getElementById('btnAbsenden');
+  if (button) { button.disabled = aktiv; }
+}
+
+// Erfolg: Felder leeren, Art zurück auf VERLOREN, Zähler 0/500.
+// (Standort und Mini-Karte setzt Task 7 nach dem Posten zurück.)
+function leereFormular() {
+  const feldText = document.getElementById('eingabeText');
+  const feldName = document.getElementById('eingabeName');
+  const feldKontakt = document.getElementById('eingabeKontakt');
+  if (feldText) { feldText.value = ''; }
+  if (feldName) { feldName.value = ''; }
+  if (feldKontakt) { feldKontakt.value = ''; }
+  setArt('verloren');
+  aktualisiereZaehler();
+}
+
+// Task 5: POST + Erfolgs-/Fehlerfluss. Erfolg räumt das Formular,
+// zeigt die Erfolgszeile und lädt frisch vom Amt (neue Nr. sofort oben).
+function sendeMeldung(daten) {
+  setzeSendeZustand(true);
+  postMeldung(daten)
+    .then(function () {
+      leereFormular();
+      zeigeFormStatus('Eingetragen! Die Lupe macht sich auf die Suche. 🔍', true);
+      return ladeMeldungen();
+    })
+    .catch(function (fehler) {
+      zeigeFormStatus(FundbueroLogik.fehlerText(statusAus(fehler)), false);
+    })
+    .then(function () {
+      setzeSendeZustand(false);
+    });
+}
+
+// Task 4/5: validieren, Fehler zeigen — sonst an Supabase senden.
 function verarbeiteAbsenden() {
+  if (sendet) { return; } // Es läuft bereits ein Request — nichts doppelt senden.
+
   const feldText = document.getElementById('eingabeText');
   const feldName = document.getElementById('eingabeName');
   const feldKontakt = document.getElementById('eingabeKontakt');
@@ -333,8 +426,12 @@ function verarbeiteAbsenden() {
     return;
   }
 
-  zeigeFormStatus('', false); // alte Fehler wegräumen, keine Erfolgsmeldung in Task 4
-  // Task 5: hier an Supabase senden (ergebnis.daten + state.composer.standort aus Task 7).
+  zeigeFormStatus('', false); // alte Fehler wegräumen
+  if (!istKonfiguriert()) {
+    zeigeFormStatus('Das Amt ist noch nicht angeschlossen … Bald geht\'s los!', false);
+    return;
+  }
+  sendeMeldung(ergebnis.daten); // { art, text, name, kontakt } + Standort (Task 7)
 }
 
 // Verdrahtet Tastatur, Zähler, Art-Pills und den Submit-Pfad.
@@ -383,7 +480,7 @@ function verdrahteEvents() {
   const aktualisieren = document.getElementById('aktualisieren');
   if (aktualisieren) {
     aktualisieren.addEventListener('click', function () {
-      renderFeed(); // Vorerst nur neu rendern; Task 5 lädt hier neu vom Amt.
+      ladeMeldungen(); // Task 5: frisch vom Amt laden (Fehler → #statusHinweis)
     });
   }
 
@@ -393,12 +490,11 @@ function verdrahteEvents() {
 /* ---------- 5. Init ---------- */
 
 function init() {
-  state.meldungen = DEMO_MELDUNGEN.slice();
   baueTastatur();
   verdrahteEvents();
-  renderFeed();
   setArt(state.composer.art);
   aktualisiereZaehler();
+  ladeMeldungen(); // Task 5: echte Einträge aus Supabase oder Nicht-angeschlossen-Hinweis
 }
 
 init();
