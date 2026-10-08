@@ -205,6 +205,8 @@ button:focus-visible, input:focus-visible, textarea:focus-visible {
   border-radius: 10px;
   padding: 8px 10px;
   box-shadow: 0 2px 4px rgba(21, 58, 120, .1);
+  scroll-margin-top: 16px; /* „Zur Meldung ↓" landet nicht am Rand */
+  transition: box-shadow .35s ease;
 }
 
 .badge {
@@ -614,6 +616,41 @@ button:focus-visible, input:focus-visible, textarea:focus-visible {
 }
 
 .leaflet-popup-content-wrapper { border-radius: 10px; }
+
+/* ---------- Karten-Popup + Listen-Hervorhebung (Task 6) ---------- */
+
+.leaflet-popup-content .badge {
+  display: inline-block;
+  margin: 0 0 4px;
+}
+
+.popupText {
+  display: block;
+  color: var(--blau-text);
+}
+
+.popupMeta {
+  margin-top: 2px;
+  font-size: 11px;
+  color: var(--blau-meta);
+}
+
+.popupNr {
+  color: #1d5eb8;
+  font-weight: bold;
+}
+
+.popupLink {
+  display: inline-block;
+  margin-top: 5px;
+  font-size: 11px;
+  font-weight: bold;
+  color: var(--aktion);
+}
+
+.meldungHervor {
+  box-shadow: 0 0 0 3px var(--gelb), 0 2px 8px rgba(21, 58, 120, .3);
+}
 
 /* ---------- Fuß ---------- */
 

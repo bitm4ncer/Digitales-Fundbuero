@@ -1,19 +1,20 @@
 /* =========================================================
    Digitales Fundbüro — app.js
-   Ausbaustufe Task 5: echter geteilter Feed über Supabase
-   (laden, posten, Fehlerpfade) — dazu Feed-Liste (Task 3)
-   und Composer mit Tastatur/Validierung (Task 4).
-   Standort im Formular folgt in Task 7.
+   Ausbaustufe Task 6: Karten-Sidebar (Pins, Bereichs-Kreise,
+   Popups, mobil einklappbar) — aufbauend auf Task 5 (echter
+   geteilter Feed), Task 3 (Feed-Liste) und Task 4 (Composer
+   mit Tastatur/Validierung). Standort im Formular folgt in Task 7.
 
    Abschnitte:
    1. State
    2. Supabase (Konfiguration, Laden, Senden)
-   3. Rendering
+   3. Rendering (Feed, Tastatur, Karte)
    4. Events
    5. Init
 
-   Alle Nutzertexte werden per textContent gesetzt — nie rohes
-   innerHTML mit Nutzerinhalt. Datum/Nummer kommen aus logic.js.
+   Nutzertexte laufen per textContent ins DOM; einziges HTML-Sink
+   ist das Leaflet-Popup (bindPopup) — dort schützt konsequent
+   FundbueroLogik.escapeHtml. Datum/Nummer kommen aus logic.js.
    ========================================================= */
 'use strict';
 
@@ -24,12 +25,33 @@
 const state = { meldungen: [], filter: 'alle', composer: { art: 'verloren', standort: null } };
 
 // sendet: Reentrancy-Guard — während eines laufenden POST ist der Absende-Button gesperrt.
+// karte/pinEbene/kreisEbene: Leaflet-Instanz der Sidebar (Task 6); pinAnzahl speist
+// Pin-Zähler und Mobil-Button. Alles bleibt null, wenn Leaflet (CDN) fehlt.
 let sendet = false;
+let karte = null;
+let pinEbene = null;
+let kreisEbene = null;
+let pinAnzahl = 0;
 
 const FILTER_WERTE = ['alle', 'verloren', 'gefunden'];
 const EIN_TAG_MS = 24 * 60 * 60 * 1000; // Fenster für das NEU!-Chip
 const TEXT_MAX = 220; // Anzeige-Kürzung im Feed
 const EINGABE_MAX = 500; // maxlength am #eingabeText; Zähler zeigt n/500
+const POPUP_TEXT_MAX = 120; // Anzeige-Kürzung im Karten-Popup
+const HERVOR_MS = 2000; // So lange leuchtet die Feed-Karte nach „Zur Meldung ↓"
+
+// Karten-Grunddaten laut Spec/Mockup (sidebar.html).
+const KARTE_MITTE = [51.163, 10.447]; // Deutschland-Mitte
+const KARTE_ZOOM = 6;
+const KARTE_TILES = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
+const KARTE_ATTRIBUTION = '© OpenStreetMap-Mitwirkende';
+const MOBIL_QUERY = '(max-width: 860px)'; // synchron zu style.css
+
+// Pin-Farben/-Buchstaben exakt wie im Mockup (hell → dunkel).
+const PIN_FARBEN = {
+  verloren: { hell: '#ff8a80', dunkel: '#e0342a', buchstabe: 'V' },
+  gefunden: { hell: '#7ee08a', dunkel: '#1fa53c', buchstabe: 'G' }
+};
 
 // Tastatur-Reihen exakt wie im Mockup (brand-jamba-nummer.html):
 // 9er-Grid mit A–Z, 0–9, Umlauten und Satzzeichen, darunter die
@@ -200,6 +222,7 @@ function aktualisierePills() {
 // Klont das Template und füllt es mit einer Meldung.
 function baueKarte(meldung, vorlage) {
   const karte = vorlage.content.firstElementChild.cloneNode(true);
+  karte.id = 'meldung-' + meldung.id; // Task 6: Ziel für „Zur Meldung ↓" im Popup
 
   const badge = karte.querySelector('.badge');
   badge.classList.add(meldung.art);
@@ -237,6 +260,130 @@ function renderFeed() {
 
   leer.hidden = sichtbar.length !== 0;
   aktualisierePills();
+  renderKarte(); // Task 6: Pins (und Bereichs-Kreise) folgen Liste + Filter
+}
+
+/* --- Karte (Task 6) --- */
+
+// Tropfen-Pin als L.divIcon: 24 px, rotes „V" / grünes „G", weiße
+// 2-px-Kontur, Schatten — Optik aus dem Mockup (sidebar.html). Das
+// HTML ist rein statisch und enthält keine Nutzertexte.
+function pinIcon(art) {
+  const farben = PIN_FARBEN[art] || PIN_FARBEN.verloren;
+  return L.divIcon({
+    className: '',
+    html: '<div style="width:24px;height:24px;background:linear-gradient(' + farben.hell + ',' + farben.dunkel + ');border-radius:50% 50% 50% 0;transform:rotate(-45deg);border:2px solid #fff;box-shadow:0 2px 4px rgba(0,0,0,.45);">' +
+      '<div style="transform:rotate(45deg);width:20px;height:20px;line-height:20px;text-align:center;color:#fff;font-weight:bold;font-size:11px;">' + farben.buchstabe + '</div></div>',
+    iconSize: [24, 24],
+    iconAnchor: [12, 25],
+    popupAnchor: [0, -23]
+  });
+}
+
+// Popup-Kurztext: höchstens 120 Zeichen, sonst „…" (wie kuerzeText im Feed).
+function kuerzePopupText(text) {
+  const sauber = String(text == null ? '' : text);
+  return sauber.length > POPUP_TEXT_MAX ? sauber.slice(0, POPUP_TEXT_MAX) + '…' : sauber;
+}
+
+// Popup-HTML: Badge, Kurztext, Nummer, Name (leer → „Anonym"), Datum und
+// der Link zurück in die Liste. Leaflet nimmt HTML — deshalb sind ALLE
+// dynamischen Texte durch FundbueroLogik.escapeHtml geschützt.
+function popupHtml(meldung) {
+  const escape = FundbueroLogik.escapeHtml;
+  const gefunden = meldung.art === 'gefunden';
+  const name = String(meldung.name == null ? '' : meldung.name).trim();
+  const idText = escape(String(meldung.id));
+  return '<span class="badge ' + (gefunden ? 'gefunden' : 'verloren') + '">' + (gefunden ? 'GEFUNDEN' : 'VERLOREN') + '</span>' +
+    '<b class="popupText">' + escape(kuerzePopupText(meldung.text)) + '</b>' +
+    '<div class="popupMeta">' +
+      '<span class="popupNr">Nr. ' + escape(FundbueroLogik.formatNummer(meldung.id, meldung.created_at)) + '</span> · von ' +
+      escape(name || 'Anonym') + ' · ' + escape(FundbueroLogik.formatDatum(meldung.created_at)) +
+    '</div>' +
+    '<a class="popupLink" href="#meldung-' + idText + '" data-meldung="' + idText + '">Zur Meldung ↓</a>';
+}
+
+// Eine Meldung als Marker (+ Bereichs-Kreis, wenn radius_m > 0) einhängen.
+// Ohne gültige Koordinaten (istGueltigeKoordinate) wird nichts gezeichnet.
+function fuegeMeldungZurKarte(meldung) {
+  if (!FundbueroLogik.istGueltigeKoordinate(meldung.lat, meldung.lng)) { return; }
+
+  const farben = PIN_FARBEN[meldung.art] || PIN_FARBEN.verloren;
+  L.marker([meldung.lat, meldung.lng], { icon: pinIcon(meldung.art) })
+    .addTo(pinEbene)
+    .bindPopup(popupHtml(meldung));
+
+  const radius = Number(meldung.radius_m);
+  if (radius > 0) {
+    L.circle([meldung.lat, meldung.lng], {
+      radius: radius,
+      color: farben.dunkel,
+      weight: 2,
+      fillColor: farben.dunkel,
+      fillOpacity: 0.12
+    }).addTo(kreisEbene);
+  }
+}
+
+// Pin-Zähler, Mobil-Button-Text und aria-expanded synchron halten
+// (#mapBox trägt mobil die Klasse „zu" = eingeklappt).
+function aktualisiereKarteToggle() {
+  const box = document.getElementById('mapBox');
+  const button = document.getElementById('mapToggle');
+  const zaehler = document.querySelector('.pinZaehler');
+  const zu = !!(box && box.classList.contains('zu'));
+
+  if (button) {
+    button.textContent = zu ? '🗺️ Karte anzeigen (' + pinAnzahl + ')' : '🗺️ Karte verbergen';
+    button.setAttribute('aria-expanded', zu ? 'false' : 'true');
+  }
+  if (zaehler) {
+    zaehler.textContent = pinAnzahl + (pinAnzahl === 1 ? ' Pin' : ' Pins');
+  }
+}
+
+// Neu zeichnen: erst die Pins der (gefilterten) Liste zählen — damit stimmen
+// Zähler und Mobil-Button auch ohne (oder vor) Leaflet — dann Marker- und
+// Kreis-Ebene leeren und frisch aufbauen. Der Tile-Layer bleibt bestehen.
+function renderKarte() {
+  const sichtbar = sortierteMeldungen();
+  pinAnzahl = 0;
+  sichtbar.forEach(function (meldung) {
+    if (FundbueroLogik.istGueltigeKoordinate(meldung.lat, meldung.lng)) { pinAnzahl += 1; }
+  });
+  aktualisiereKarteToggle();
+
+  if (!karte || !pinEbene || !kreisEbene) { return; }
+
+  pinEbene.clearLayers();
+  kreisEbene.clearLayers();
+  sichtbar.forEach(fuegeMeldungZurKarte);
+}
+
+// Leaflet-Karte in #mapSidebar aufbauen: Deutschland-Mitte, Zoom 6, kein
+// Scroll-Zoom (Zoom-Buttons per Default), OSM-Tiles mit Attribution. Fehlt
+// Leaflet (CDN/offline), bleibt die Seite ohne Karte voll funktionsfähig.
+function initialisiereKarte() {
+  const behaelter = document.getElementById('mapSidebar');
+  if (!behaelter || typeof L === 'undefined' || !L || typeof L.map !== 'function') { return; }
+
+  karte = L.map(behaelter, { scrollWheelZoom: false, zoomControl: true }).setView(KARTE_MITTE, KARTE_ZOOM);
+  L.tileLayer(KARTE_TILES, { maxZoom: 19, attribution: KARTE_ATTRIBUTION }).addTo(karte);
+  pinEbene = L.layerGroup().addTo(karte);
+  kreisEbene = L.layerGroup().addTo(karte);
+
+  renderKarte(); // Stand direkt nach dem ersten Feed-Render zeichnen
+}
+
+// Mobil (≤ 860 px) startet die Karte eingeklappt; danach klappt der
+// #mapToggle-Klick sie ein/aus (Verdrahtung in verdrahteKarte()).
+function initialisiereMobilEinklappen() {
+  const box = document.getElementById('mapBox');
+  if (box && typeof window !== 'undefined' && typeof window.matchMedia === 'function' &&
+      window.matchMedia(MOBIL_QUERY).matches) {
+    box.classList.add('zu');
+  }
+  aktualisiereKarteToggle();
 }
 
 // Eine Tastatur-Taste als echter <button type="button"> mit
@@ -286,7 +433,7 @@ function aktualisiereZaehler() {
 function setFilter(filter) {
   if (FILTER_WERTE.indexOf(filter) === -1) { return; }
   state.filter = filter;
-  renderFeed(); // Task 6 lässt hier zusätzlich die Karte filtern.
+  renderFeed(); // rendert Liste UND Pins (renderFeed → renderKarte)
 }
 
 // --- Composer: Tastatur, Art-Pills, Validierung ---
@@ -467,6 +614,49 @@ function verdrahteComposer() {
   });
 }
 
+// Task 6: Mobiler Karten-Button („Karte anzeigen (n)" / „Karte verbergen")
+// und die Popup-Links „Zur Meldung ↓" in der Sidebar-Karte verdrahten.
+function verdrahteKarte() {
+  const toggle = document.getElementById('mapToggle');
+  if (toggle) {
+    toggle.addEventListener('click', function () {
+      const box = document.getElementById('mapBox');
+      if (!box) { return; }
+      box.classList.toggle('zu');
+      aktualisiereKarteToggle();
+      // Aus der display:none-Ecke aufgetaucht → Leaflet muss neu messen.
+      if (!box.classList.contains('zu') && karte && typeof karte.invalidateSize === 'function') {
+        karte.invalidateSize();
+      }
+    });
+  }
+
+  const behaelter = document.getElementById('mapSidebar');
+  if (behaelter) {
+    behaelter.addEventListener('click', function (ereignis) {
+      const ziel = ereignis.target;
+      const link = ziel && typeof ziel.closest === 'function'
+        ? ziel.closest('a.popupLink[data-meldung]')
+        : null;
+      if (!link) { return; }
+      ereignis.preventDefault();
+      zeigeMeldungInListe(link.dataset.meldung);
+      if (karte && typeof karte.closePopup === 'function') { karte.closePopup(); }
+    });
+  }
+}
+
+// Popup-Link: zur zugehörigen Feed-Karte scrollen und sie 2 s hervorheben.
+function zeigeMeldungInListe(id) {
+  const karteInListe = document.getElementById('meldung-' + id);
+  if (!karteInListe) { return; }
+  karteInListe.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  karteInListe.classList.add('meldungHervor');
+  window.setTimeout(function () {
+    karteInListe.classList.remove('meldungHervor');
+  }, HERVOR_MS);
+}
+
 function verdrahteEvents() {
   const filterBar = document.getElementById('filterBar');
   if (filterBar) {
@@ -484,6 +674,8 @@ function verdrahteEvents() {
     });
   }
 
+  verdrahteKarte(); // Task 6: Karten-Toggle + Popup-Links
+
   verdrahteComposer();
 }
 
@@ -494,7 +686,9 @@ function init() {
   verdrahteEvents();
   setArt(state.composer.art);
   aktualisiereZaehler();
+  initialisiereMobilEinklappen(); // Task 6: mobil startet die Karte eingeklappt
   ladeMeldungen(); // Task 5: echte Einträge aus Supabase oder Nicht-angeschlossen-Hinweis
+  initialisiereKarte(); // Task 6: Leaflet nach dem ersten renderFeed() aufbauen
 }
 
 init();
