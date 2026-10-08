@@ -1,0 +1,10 @@
+# Brainstorm-Playback & Session-Daten (lokal, enthält Session-Schlüssel)
+.superpowers/
+
+# OS-Kram
+Thumbs.db
+Desktop.ini
+.DS_Store
+
+# Editor
+*.swp

@@ -1,0 +1,95 @@
+<h2>Die Karte 🗺️ — alle Fundstücke auf einen Blick</h2>
+<p class="subtitle">OpenStreetMap, kein Google. Unten sind <b>echte, klickbare Karten-Fenster</b> — Pins anklicken, mit +/− zoomen! Jeder Eintrag <i>kann</i> einen genauen Standort oder einen Bereich bekommen.</p>
+
+<h3>So sieht sie auf der Seite aus</h3>
+<div style="background:#0f3d80;padding:12px;border-radius:12px;margin:8px 0;">
+  <div style="background:#fff;border-radius:10px;overflow:hidden;box-shadow:0 3px 8px rgba(0,0,0,.3);">
+    <div style="background:linear-gradient(180deg,#4b8de0,#1d5eb8 60%,#164a96);border-bottom:4px solid #ffd200;padding:8px 12px;display:flex;align-items:center;gap:8px;">
+      <span style="font-weight:bold;color:#fff;font-size:13px;text-shadow:0 1px 0 #0b3a78;">🗺️ Karte der Fundstücke</span>
+      <span style="margin-left:auto;display:flex;gap:6px;">
+        <span style="background:linear-gradient(#fff,#e8f1ff);border:1px solid #9db8dd;border-radius:999px;padding:3px 12px;color:#2a68c4;font-size:11px;font-weight:bold;">📋 Liste</span>
+        <span style="background:linear-gradient(#ffe25e,#f7b400);border:2px solid #fff;border-radius:999px;padding:3px 12px;color:#6b4a00;font-size:11px;font-weight:bold;box-shadow:0 2px 0 #b58900;">🗺️ Karte</span>
+      </span>
+    </div>
+    <div id="mapMain" style="height:340px;filter:saturate(.9) sepia(.12) contrast(1.02);"></div>
+    <div style="background:#dfeaff;padding:5px 10px;font-size:10px;color:#44546a;display:flex;justify-content:space-between;">
+      <span>🔴 Verloren · 🟢 Gefunden · Klick auf einen Pin für Details</span>
+      <span>© OpenStreetMap-Mitwirkende</span>
+    </div>
+  </div>
+</div>
+
+<h3 style="margin-top:1.5rem;">Im Formular: Standort setzen (optional)</h3>
+<p class="subtitle">Klick in die Karte setzt den Pin (auch ziehbar). Oben umschalten zwischen „Genauer Punkt" und „Bereich" — beim Bereich zieht der Regler den Kreis auf.</p>
+<div style="background:#0f3d80;padding:12px;border-radius:12px;max-width:620px;margin:0 auto;">
+  <div style="background:#dfeaff;border-radius:10px;padding:10px;">
+    <div style="display:flex;gap:6px;margin-bottom:8px;justify-content:center;">
+      <span id="btnPunkt" onclick="karteSetMode('punkt')" style="cursor:pointer;background:linear-gradient(#fff,#e8f1ff);border:1px solid #9db8dd;border-radius:999px;padding:4px 14px;color:#2a68c4;font-size:11px;font-weight:bold;">🎯 Genauer Punkt</span>
+      <span id="btnBereich" onclick="karteSetMode('bereich')" style="cursor:pointer;background:linear-gradient(#ffe25e,#f7b400);border:2px solid #fff;border-radius:999px;padding:4px 14px;color:#6b4a00;font-size:11px;font-weight:bold;box-shadow:0 2px 0 #b58900;">⭕ Bereich</span>
+    </div>
+    <div id="mapMini" style="height:200px;border-radius:8px;overflow:hidden;filter:saturate(.9) sepia(.12) contrast(1.02);"></div>
+    <div id="radiusRow" style="display:flex;align-items:center;gap:8px;font-size:11px;color:#123a75;margin-top:8px;">
+      <span>Radius:</span>
+      <input id="radius" type="range" min="50" max="1000" step="50" value="300" style="flex:1;">
+      <span id="radiusVal" style="font-weight:bold;min-width:70px;">ca. 300 m</span>
+    </div>
+    <div style="font-size:10px;color:#5b6c86;margin-top:4px;">Tipp: „Bereich" statt genauer Punkt — so bleibt dein genauer Ort privat.</div>
+  </div>
+</div>
+
+<p class="subtitle" style="margin-top:1rem;">☝️ <b>Wirklich live:</b> Zoom mit den +/−-Knöpfen, Pins anklicken, im Formular-Mini durch die Karte klicken und den Regler ziehen.</p>
+<p class="subtitle" style="margin-top:0.5rem;"><b>Fragen an dich:</b> 1) Passt die Karte so (Pins, Fenster, warmer Retro-Filter)? 2) Karte als <b>Tab neben der Liste</b> (wie oben) oder <b>fest eingebaut unter dem Feed</b>? 3) Reicht „Regionaler Bereich" als Option — oder soll man auch <i>ohne</i> Standort posten können? (Ich würd's optional lassen.)</p>
+
+<style>@import url('https://unpkg.com/leaflet@1.9.4/dist/leaflet.css');</style>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+(function() {
+  function pin(c1, c2, letter) {
+    return L.divIcon({
+      className: '',
+      html: '<div style="width:28px;height:28px;background:linear-gradient(' + c1 + ',' + c2 + ');border-radius:50% 50% 50% 0;transform:rotate(-45deg);border:2px solid #fff;box-shadow:0 2px 4px rgba(0,0,0,.45);"><div style="transform:rotate(45deg);width:24px;height:24px;line-height:24px;text-align:center;color:#fff;font-weight:bold;font-size:13px;">' + letter + '</div></div>',
+      iconSize: [28, 28],
+      iconAnchor: [14, 29],
+      popupAnchor: [0, -27]
+    });
+  }
+  var RED = ['#ff8a80', '#e0342a'], GREEN = ['#7ee08a', '#1fa53c'];
+  var center = [48.1371, 11.5754];
+  var tiles = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
+
+  var main = L.map('mapMain', { scrollWheelZoom: false }).setView(center, 15);
+  L.tileLayer(tiles, { maxZoom: 19, attribution: '&copy; OpenStreetMap-Mitwirkende' }).addTo(main);
+  L.marker([48.1393, 11.5765], { icon: pin(RED[0], RED[1], 'V') }).addTo(main).bindPopup('<b>Glücks-Fuchsschwanz</b><br>Nr. 2026-0042 · <span style="color:#b00000;font-weight:bold;">VERLOREN</span><br><span style="color:#5b6c86;font-size:11px;">von Mia · Skatepark</span>');
+  L.marker([48.1355, 11.5820], { icon: pin(GREEN[0], GREEN[1], 'G') }).addTo(main).bindPopup('<b>Silberner Discman</b><br>Nr. 2026-0041 · <span style="color:#006400;font-weight:bold;">GEFUNDEN</span><br><span style="color:#5b6c86;font-size:11px;">von Jonas · Bus 123</span>');
+  L.marker([48.1366, 11.5697], { icon: pin(GREEN[0], GREEN[1], 'G') }).addTo(main).bindPopup('<b>Ein Handschuh (links)</b><br>Nr. 2026-0040 · <span style="color:#006400;font-weight:bold;">GEFUNDEN</span><br><span style="color:#5b6c86;font-size:11px;">von Fundbüro · Turnhalle</span>');
+  L.marker([48.1402, 11.5810], { icon: pin(RED[0], RED[1], 'V') }).addTo(main).bindPopup('<b>Schwarze Mütze</b><br>Nr. 2026-0039 · <span style="color:#b00000;font-weight:bold;">VERLOREN</span><br><span style="color:#5b6c86;font-size:11px;">von Anonym · U-Bahn</span>');
+
+  var mini = L.map('mapMini', { scrollWheelZoom: false }).setView(center, 15);
+  L.tileLayer(tiles, { maxZoom: 19 }).addTo(mini);
+  var mk = L.marker(center, { icon: pin(RED[0], RED[1], 'V'), draggable: true }).addTo(mini);
+  var circle = L.circle(center, { radius: 300, color: '#e0342a', weight: 2, fillColor: '#e0342a', fillOpacity: 0.12 }).addTo(mini);
+
+  function sync(latlng) {
+    mk.setLatLng(latlng);
+    circle.setLatLng(latlng);
+  }
+  mini.on('click', function(e) { sync(e.latlng); });
+  mk.on('drag', function(e) { circle.setLatLng(mk.getLatLng()); });
+
+  var sActive = 'cursor:pointer;background:linear-gradient(#ffe25e,#f7b400);border:2px solid #fff;border-radius:999px;padding:4px 14px;color:#6b4a00;font-size:11px;font-weight:bold;box-shadow:0 2px 0 #b58900;';
+  var sInactive = 'cursor:pointer;background:linear-gradient(#fff,#e8f1ff);border:1px solid #9db8dd;border-radius:999px;padding:4px 14px;color:#2a68c4;font-size:11px;font-weight:bold;';
+
+  window.karteSetMode = function(mode) {
+    var isB = mode === 'bereich';
+    document.getElementById('btnBereich').style.cssText = isB ? sActive : sInactive;
+    document.getElementById('btnPunkt').style.cssText = isB ? sInactive : sActive;
+    circle.setStyle({ opacity: isB ? 1 : 0, fillOpacity: isB ? 0.12 : 0 });
+    document.getElementById('radiusRow').style.display = isB ? 'flex' : 'none';
+  };
+
+  document.getElementById('radius').addEventListener('input', function() {
+    circle.setRadius(+this.value);
+    document.getElementById('radiusVal').textContent = 'ca. ' + this.value + ' m';
+  });
+})();
+</script>
