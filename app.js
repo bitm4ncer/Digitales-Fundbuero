@@ -1,7 +1,8 @@
 /* =========================================================
    Digitales Fundbüro — app.js
-   Ausbaustufe Task 3: Feed-Liste mit Demo-Daten, Filtern und
-   Zählern.
+   Ausbaustufe Task 4: Feed-Liste (Task 3) + Composer mit
+   anklickbarer Tastatur, Zeichenzähler, Art-Pills und Validierung.
+   Senden folgt in Task 5, Standort in Task 7.
 
    Abschnitte:
    1. State
@@ -18,11 +19,28 @@
 /* ---------- 1. State ---------- */
 
 // filter: 'alle' | 'verloren' | 'gefunden'
-const state = { meldungen: [], filter: 'alle' };
+// composer: Eingaben des Formulars; standort füllt Task 7.
+const state = { meldungen: [], filter: 'alle', composer: { art: 'verloren', standort: null } };
 
 const FILTER_WERTE = ['alle', 'verloren', 'gefunden'];
 const EIN_TAG_MS = 24 * 60 * 60 * 1000; // Fenster für das NEU!-Chip
 const TEXT_MAX = 220; // Anzeige-Kürzung im Feed
+const EINGABE_MAX = 500; // maxlength am #eingabeText; Zähler zeigt n/500
+
+// Tastatur-Reihen exakt wie im Mockup (brand-jamba-nummer.html):
+// 9er-Grid mit A–Z, 0–9, Umlauten und Satzzeichen, darunter die
+// breite LEERTASTE. Kappen groß, eingefügt wird klein (kein Shift).
+const TASTEN_REIHEN = [
+  ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I'],
+  ['J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R'],
+  ['S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z', '1'],
+  ['2', '3', '4', '5', '6', '7', '8', '9', '0'],
+  ['Ä', 'Ö', 'Ü', 'ß', '.', ',', '?', '!', '⌫']
+];
+const TASTE_LEER = 'LEERTASTE';
+const TASTE_LOESCHEN = '⌫';
+const UMLAUTE = ['Ä', 'Ö', 'Ü', 'ß'];
+const SATZZEICHEN = ['.', ',', '?', '!'];
 
 /* ---------- 2. Demo-Daten ---------- */
 
@@ -168,12 +186,188 @@ function renderFeed() {
   aktualisierePills();
 }
 
+// Eine Tastatur-Taste als echter <button type="button"> mit
+// Mockup-Farbklasse (Umlaute gelb, Satzzeichen grau, ⌫ rot).
+function erzeugeTaste(kappe) {
+  const taste = document.createElement('button');
+  taste.type = 'button';
+  taste.dataset.taste = kappe;
+  taste.textContent = kappe;
+
+  if (kappe === TASTE_LEER) {
+    taste.classList.add('tasteLeer');
+    taste.setAttribute('aria-label', 'Leertaste');
+  } else if (kappe === TASTE_LOESCHEN) {
+    taste.classList.add('tasteLoesch');
+    taste.setAttribute('aria-label', 'Löschen');
+  } else if (UMLAUTE.indexOf(kappe) !== -1) {
+    taste.classList.add('tasteUmlaut');
+  } else if (SATZZEICHEN.indexOf(kappe) !== -1) {
+    taste.classList.add('tasteSatz');
+  }
+  return taste;
+}
+
+// Baut die Bildschirmtastatur einmalig in den leeren #tastatur-
+// Container (breite LEERTASTE kommt übers CSS, grid-column span 9).
+function baueTastatur() {
+  const behaelter = document.getElementById('tastatur');
+  if (!behaelter) { return; }
+  while (behaelter.firstChild) { behaelter.removeChild(behaelter.firstChild); }
+  TASTEN_REIHEN.forEach(function (reihe) {
+    reihe.forEach(function (kappe) { behaelter.appendChild(erzeugeTaste(kappe)); });
+  });
+  behaelter.appendChild(erzeugeTaste(TASTE_LEER));
+}
+
+// Zeichenzähler live: "n/500" — auch nach physischem Tippen/Einfügen.
+function aktualisiereZaehler() {
+  const feld = document.getElementById('eingabeText');
+  const zaehler = document.getElementById('zeichenZaehler');
+  if (!feld || !zaehler) { return; }
+  zaehler.textContent = feld.value.length + '/' + EINGABE_MAX;
+}
+
 /* ---------- 4. Events ---------- */
 
 function setFilter(filter) {
   if (FILTER_WERTE.indexOf(filter) === -1) { return; }
   state.filter = filter;
   renderFeed(); // Task 6 lässt hier zusätzlich die Karte filtern.
+}
+
+// --- Composer: Tastatur, Art-Pills, Validierung ---
+
+// Art-Pills: Optik kommt übers CSS (aria-pressed), hier nur State + A11y.
+function setArt(art) {
+  if (art !== 'verloren' && art !== 'gefunden') { return; }
+  state.composer.art = art;
+  document.querySelectorAll('#composer .artPill[data-art]').forEach(function (pill) {
+    pill.setAttribute('aria-pressed', pill.dataset.art === art ? 'true' : 'false');
+  });
+}
+
+// Aktuelle Cursor-/Selektionsposition (Fallback: Textende).
+function auswahlBereich(feld) {
+  if (feld.selectionStart == null || feld.selectionEnd == null) {
+    const laenge = feld.value.length;
+    return { start: laenge, ende: laenge };
+  }
+  return { start: feld.selectionStart, ende: feld.selectionEnd };
+}
+
+// Cursor auf pos setzen, Fokus zurück ins Textfeld, Zähler aktualisieren.
+function setzeCursor(feld, pos) {
+  feld.focus();
+  const laenge = feld.value.length;
+  const ziel = Math.max(0, Math.min(Number(pos) || 0, laenge));
+  if (typeof feld.setSelectionRange === 'function') { feld.setSelectionRange(ziel, ziel); }
+  aktualisiereZaehler();
+}
+
+// Tastatur-Einfügen an der Cursorposition bzw. Ersetzen der Auswahl.
+// Exakt über FundbueroLogik.insertFuerText; am 500er-Limit wie
+// maxlength: nichts einfügen (Auswahl ersetzen bleibt möglich).
+function fuegeZeichenEin(zeichen) {
+  const feld = document.getElementById('eingabeText');
+  if (!feld) { return; }
+  const einzufuegen = String(zeichen == null ? '' : zeichen);
+  if (einzufuegen === '') { return; }
+  const bereich = auswahlBereich(feld);
+  if (feld.value.length - (bereich.ende - bereich.start) >= EINGABE_MAX) {
+    feld.focus(); // Limit erreicht: nichts einfügen, aber Bedienung/Zähler pflegen
+    aktualisiereZaehler();
+    return;
+  }
+  const ergebnis = FundbueroLogik.insertFuerText(feld.value, bereich.start, bereich.ende, einzufuegen);
+  feld.value = ergebnis.text;
+  setzeCursor(feld, ergebnis.pos);
+}
+
+// ⌫: Auswahl löschen bzw. ein Zeichen davor — über loescheZurueck.
+function loescheZeichen() {
+  const feld = document.getElementById('eingabeText');
+  if (!feld) { return; }
+  const bereich = auswahlBereich(feld);
+  const ergebnis = FundbueroLogik.loescheZurueck(feld.value, bereich.start, bereich.ende);
+  feld.value = ergebnis.text;
+  setzeCursor(feld, ergebnis.pos);
+}
+
+// Klick auf eine Taste: preventDefault, klein einfügen (bzw. ⌫/Leer).
+function behandleTastaturKlick(ereignis) {
+  const taste = ereignis.target && ereignis.target.closest
+    ? ereignis.target.closest('#tastatur button[data-taste]')
+    : null;
+  if (!taste) { return; }
+  ereignis.preventDefault();
+  const kappe = taste.dataset.taste;
+  if (kappe === TASTE_LOESCHEN) { loescheZeichen(); }
+  else { fuegeZeichenEin(kappe === TASTE_LEER ? ' ' : kappe.toLowerCase()); }
+}
+
+// Statuszeile: Fehlertexte rot, leer/neutral nach Erfolg (CSS: .ok grün).
+function zeigeFormStatus(nachricht, ok) {
+  const status = document.getElementById('formStatus');
+  if (!status) { return; }
+  status.textContent = nachricht;
+  status.classList.toggle('ok', !!ok);
+}
+
+// Task 4: nur validieren und Fehler zeigen — noch kein Senden.
+function verarbeiteAbsenden() {
+  const feldText = document.getElementById('eingabeText');
+  const feldName = document.getElementById('eingabeName');
+  const feldKontakt = document.getElementById('eingabeKontakt');
+
+  const ergebnis = FundbueroLogik.validiereMeldung({
+    art: state.composer.art,
+    text: feldText ? feldText.value : '',
+    name: feldName ? feldName.value : '',
+    kontakt: feldKontakt ? feldKontakt.value : ''
+  });
+
+  if (!ergebnis.ok) {
+    zeigeFormStatus(ergebnis.fehler.join(' '), false);
+    if (feldText) { feldText.focus(); }
+    return;
+  }
+
+  zeigeFormStatus('', false); // alte Fehler wegräumen, keine Erfolgsmeldung in Task 4
+  // Task 5: hier an Supabase senden (ergebnis.daten + state.composer.standort aus Task 7).
+}
+
+// Verdrahtet Tastatur, Zähler, Art-Pills und den Submit-Pfad.
+function verdrahteComposer() {
+  const formular = document.getElementById('composer');
+  if (!formular) { return; }
+
+  const artPills = formular.querySelector('.artPills');
+  if (artPills) {
+    artPills.addEventListener('click', function (ereignis) {
+      const pill = ereignis.target && ereignis.target.closest
+        ? ereignis.target.closest('.artPill[data-art]')
+        : null;
+      if (pill) { setArt(pill.dataset.art); }
+    });
+  }
+
+  const tastatur = document.getElementById('tastatur');
+  if (tastatur) {
+    tastatur.addEventListener('click', behandleTastaturKlick);
+  }
+
+  // Physische Tastatur bleibt normal nutzbar — nur Zähler mitziehen.
+  const feldText = document.getElementById('eingabeText');
+  if (feldText) {
+    feldText.addEventListener('input', aktualisiereZaehler);
+  }
+
+  // type="submit" + novalidate: Reload verhindern, selbst validieren.
+  formular.addEventListener('submit', function (ereignis) {
+    ereignis.preventDefault();
+    verarbeiteAbsenden();
+  });
 }
 
 function verdrahteEvents() {
@@ -192,14 +386,19 @@ function verdrahteEvents() {
       renderFeed(); // Vorerst nur neu rendern; Task 5 lädt hier neu vom Amt.
     });
   }
+
+  verdrahteComposer();
 }
 
 /* ---------- 5. Init ---------- */
 
 function init() {
   state.meldungen = DEMO_MELDUNGEN.slice();
+  baueTastatur();
   verdrahteEvents();
   renderFeed();
+  setArt(state.composer.art);
+  aktualisiereZaehler();
 }
 
 init();
