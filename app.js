@@ -222,10 +222,14 @@ function ladeMeldungen() {
 // Stimmen („▲"): eigene Stimmen vom Server holen und die Knöpfe markieren.
 // Fehler bleiben still — rein kosmetisch, alles andere läuft normal weiter.
 function ladeMeineStimmen() {
+  const controller = new AbortController();
+  const timer = setTimeout(function () { controller.abort(); }, FETCH_TIMEOUT_MS);
+
   return fetch(supabaseBasis() + '/rest/v1/rpc/meine_stimmen', {
     method: 'POST',
     headers: supabaseHeader({ 'Content-Type': 'application/json' }),
-    body: '{}'
+    body: '{}',
+    signal: controller.signal
   }).then(function (antwort) {
     if (!antwort.ok) { throw httpFehler(antwort.status); }
     return antwort.json();
@@ -237,6 +241,8 @@ function ladeMeineStimmen() {
     syncStimmenKnoepfe();
   }).catch(function () {
     // bewusst still: bis hierher gilt „nicht gestimmt".
+  }).finally(function () {
+    clearTimeout(timer); // Timer auch bei Erfolg/Fehler/Abort aufräumen
   });
 }
 
@@ -264,10 +270,14 @@ function stimmeUmschalten(meldungId, knopf) {
   anwenden(FundbueroLogik.toggleStimmenstand(vorher));
   knopf.disabled = true;
 
+  const controller = new AbortController();
+  const timer = setTimeout(function () { controller.abort(); }, FETCH_TIMEOUT_MS);
+
   fetch(supabaseBasis() + '/rest/v1/rpc/meldung_stimme', {
     method: 'POST',
     headers: supabaseHeader({ 'Content-Type': 'application/json' }),
-    body: JSON.stringify({ p_meldung_id: meldungId })
+    body: JSON.stringify({ p_meldung_id: meldungId }),
+    signal: controller.signal
   }).then(function (antwort) {
     if (!antwort.ok) { throw httpFehler(antwort.status); }
     return antwort.json();
@@ -296,6 +306,8 @@ function stimmeUmschalten(meldungId, knopf) {
       : 'Das hat gerade nicht geklappt — versuch es nochmal.');
   }).then(function () {
     knopf.disabled = false;
+  }).finally(function () {
+    clearTimeout(timer); // Timer auch nach Abort/Fehler aufräumen
   });
 }
 

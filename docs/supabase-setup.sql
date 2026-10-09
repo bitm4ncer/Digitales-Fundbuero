@@ -324,3 +324,12 @@ language sql security definer set search_path = public as $$
   where s.ip_hash = md5('fundbuero|' || trim(split_part(
     coalesce(current_setting('request.headers', true)::json ->> 'x-forwarded-for', ''), ',', 1)));
 $$;
+
+-- Härtung (Review): Der Zähler ist server-autoritativ — anon darf beim INSERT
+-- keine stimmen mitsenden (sonst ließe sich „Beliebt" direkt fälschen, bis hin
+-- zum Overflow). Es zählen nur die echten Formularfelder; id/created_at/stimmen
+-- bleiben außen vor (id/created_at kommen vom Server).
+revoke insert on table public.meldungen from anon;
+grant insert (art, text, name, kontakt, kontakt_modus, postfach_token,
+              postfach_pubkey, laeuft_ab_am, lat, lng, radius_m)
+  on table public.meldungen to anon;
