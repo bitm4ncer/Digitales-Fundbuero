@@ -532,8 +532,8 @@ function setStandortModus(modus) {
   if (punktBtn) { punktBtn.setAttribute('aria-pressed', modus === 'punkt' ? 'true' : 'false'); }
   if (bereichBtn) { bereichBtn.setAttribute('aria-pressed', modus === 'bereich' ? 'true' : 'false'); }
 
-  const radiusZeile = document.querySelector('#standortBlock .radiusZeile');
-  if (radiusZeile) { radiusZeile.hidden = modus === 'punkt'; }
+  const radiusTeil = document.getElementById('radiusTeil');
+  if (radiusTeil) { radiusTeil.hidden = modus === 'punkt'; }
 
   if (kreisMini) {
     if (modus === 'bereich') {

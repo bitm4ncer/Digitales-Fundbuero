@@ -9,7 +9,7 @@
   <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
   <!-- Asset-Version bei jedem CSS/JS-Deploy hochzählen (gegen Cache-Mixe) -->
-  <link rel="stylesheet" href="style.css?v=6">
+  <link rel="stylesheet" href="style.css?v=7">
 </head>
 <body>
   <div class="seite">
@@ -86,10 +86,6 @@
 
           <div id="standortBlock" class="standortBlock">
             <div class="standortKopf"><span class="ico" data-ico="pin"></span> Standort (optional)</div>
-            <div class="modusPills" role="group" aria-label="Standort-Modus">
-              <button type="button" id="btnPunkt" class="modusPill" aria-pressed="false"><span class="ico" data-ico="ziel"></span> Genauer Punkt</button>
-              <button type="button" id="btnBereich" class="modusPill" aria-pressed="true"><span class="ico" data-ico="kreis"></span> Bereich</button>
-            </div>
             <div class="standortSuche">
               <input id="standortSuche" class="composerFeld standortSucheFeld" type="text" maxlength="120" placeholder="Ort suchen — z. B. ‚Skatepark München'" aria-label="Ort suchen">
               <button type="button" id="btnOrtSuche" class="pill pillAktion"><span class="ico" data-ico="lupe"></span> Suchen</button>
@@ -97,9 +93,15 @@
             <div id="ortSucheStatus" class="ortSucheStatus" role="status" aria-live="polite"></div>
             <div id="mapMini" class="mapMini"></div>
             <div class="radiusZeile">
-              <label for="radius">Radius:</label>
-              <input id="radius" type="range" min="50" max="1000" step="50" value="300">
-              <span id="radiusVal">ca. 300 m</span>
+              <div class="modusPills modusPillsKompakt" role="group" aria-label="Standort-Modus">
+                <button type="button" id="btnPunkt" class="modusPill" aria-pressed="false"><span class="ico" data-ico="ziel"></span> Genauer Punkt</button>
+                <button type="button" id="btnBereich" class="modusPill" aria-pressed="true"><span class="ico" data-ico="kreis"></span> Bereich</button>
+              </div>
+              <span class="radiusTeil" id="radiusTeil">
+                <label for="radius">Radius:</label>
+                <input id="radius" type="range" min="50" max="1000" step="50" value="300">
+                <span id="radiusVal">ca. 300 m</span>
+              </span>
             </div>
             <div class="standortTipp">Tipp: „Bereich" statt genauer Punkt — so bleibt dein genauer Ort privat. · Ortssuche: © OpenStreetMap-Mitwirkende (Nominatim)</div>
           </div>
@@ -191,10 +193,10 @@
     </div>
   </dialog>
 
-  <script src="config.js?v=6"></script>
-  <script src="logic.js?v=6"></script>
-  <script src="icons.js?v=6"></script>
+  <script src="config.js?v=7"></script>
+  <script src="logic.js?v=7"></script>
+  <script src="icons.js?v=7"></script>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <script src="app.js?v=6"></script>
+  <script src="app.js?v=7"></script>
 </body>
 </html>

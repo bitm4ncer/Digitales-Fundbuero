@@ -447,9 +447,18 @@ button:focus-visible, input:focus-visible, textarea:focus-visible {
 
 .modusPills {
   display: flex;
-  justify-content: center;
   gap: 6px;
-  margin-bottom: 6px;
+}
+
+/* Kompakt-Variante: sitzt mit dem Radius-Regler in einer Zeile. */
+.modusPillsKompakt .modusPill {
+  font-size: 10px;
+  padding: 3px 10px;
+  white-space: nowrap;
+}
+
+.modusPillsKompakt .modusPill[aria-pressed="true"] {
+  padding: 2px 9px;
 }
 
 .modusPill {
@@ -483,12 +492,21 @@ button:focus-visible, input:focus-visible, textarea:focus-visible {
   display: flex;
   align-items: center;
   gap: 8px;
+  flex-wrap: wrap;
   margin-top: 8px;
   font-size: 11px;
   color: var(--blau-text);
 }
 
-.radiusZeile input[type="range"] { flex: 1; }
+.radiusTeil {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  min-width: 180px;
+}
+
+.radiusTeil input[type="range"] { flex: 1; }
 
 #radiusVal {
   min-width: 70px;
