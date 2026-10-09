@@ -67,3 +67,16 @@ test('fehlerText: freundliche Meldungen je Status', () => {
   assert.match(L.fehlerText(401), /Schlüssel/);
   assert.match(L.fehlerText(500), /schiefgelaufen/);
 });
+
+test('toggleStimmenstand: schaltet um, kappt bei 0, toleriert Müll', () => {
+  assert.deepEqual(L.toggleStimmenstand({ stimmen: 5, gestimmt: false }), { stimmen: 6, gestimmt: true });
+  assert.deepEqual(L.toggleStimmenstand({ stimmen: 6, gestimmt: true }), { stimmen: 5, gestimmt: false });
+  assert.deepEqual(L.toggleStimmenstand({ stimmen: 0, gestimmt: true }), { stimmen: 0, gestimmt: false });
+  assert.deepEqual(L.toggleStimmenstand(undefined), { stimmen: 0, gestimmt: false });
+});
+
+test('orderFuerSortierung: liefert REST-Order', () => {
+  assert.equal(L.orderFuerSortierung('beliebt'), 'stimmen.desc,id.desc');
+  assert.equal(L.orderFuerSortierung('neu'), 'id.desc');
+  assert.equal(L.orderFuerSortierung('quatsch'), 'id.desc');
+});

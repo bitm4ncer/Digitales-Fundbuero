@@ -147,6 +147,25 @@
     return 'Beim Amt ist was schiefgelaufen. Gleich nochmal probieren!';
   }
 
+  // Stimmen („▲") fürs optimistische Update: einmal umschalten —
+  // hochzählen bzw. zurücknehmen (nie unter 0, toleriert Müll).
+  function toggleStimmenstand(stand) {
+    var eingabe = stand && typeof stand === 'object' ? stand : null;
+    var zahl = eingabe ? Math.floor(Number(eingabe.stimmen)) : NaN;
+    // Ohne brauchbaren Zustand (Müll) bleibt es neutral.
+    if (!isFinite(zahl) || zahl < 0) { return { stimmen: 0, gestimmt: false }; }
+    if (eingabe.gestimmt) {
+      return { stimmen: Math.max(0, zahl - 1), gestimmt: false };
+    }
+    return { stimmen: zahl + 1, gestimmt: true };
+  }
+
+  // REST-Sortierung des Feeds: „Beliebt" = Stimmen absteigend, Gleichstand
+  // neueste zuerst; alles andere (Standard „Neu") = neueste zuerst.
+  function orderFuerSortierung(sort) {
+    return sort === 'beliebt' ? 'stimmen.desc,id.desc' : 'id.desc';
+  }
+
   return {
     formatNummer: formatNummer,
     formatDatum: formatDatum,
@@ -156,6 +175,8 @@
     loescheZurueck: loescheZurueck,
     istGueltigeKoordinate: istGueltigeKoordinate,
     istGueltigeEmail: istGueltigeEmail,
-    fehlerText: fehlerText
+    fehlerText: fehlerText,
+    toggleStimmenstand: toggleStimmenstand,
+    orderFuerSortierung: orderFuerSortierung
   };
 }));
