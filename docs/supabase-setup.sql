@@ -216,3 +216,111 @@ begin
   return jsonb_build_object('ok', true, 'id', v_id);
 end;
 $$;
+
+-- 6) Stimmen (Upvotes) ------------------------------------------------------
+-- Besucher stimmen ohne Konto/Cookie ab: eine Stimme pro Meldung und IP-Hash,
+-- umschaltbar (Toggle). Der Zähler lebt denormalisiert auf meldungen und wird
+-- per Trigger gepflegt; die Stimmen-Tabelle ist nach außen unsichtbar.
+
+create table if not exists stimmen (
+  id         bigint generated always as identity primary key,
+  meldung_id bigint not null references meldungen(id) on delete cascade,
+  ip_hash    text not null,
+  created_at timestamptz not null default now(),
+  unique (meldung_id, ip_hash)
+);
+create index if not exists stimmen_meldung_idx on stimmen (meldung_id);
+create index if not exists stimmen_ip_idx on stimmen (ip_hash);
+alter table stimmen enable row level security;
+-- bewusst KEINE Policies: nur die Funktionen unten (SECURITY DEFINER) kommen ran.
+
+-- Kurzes Protokoll nur für die Drossel; wird automatisch wieder aufgeräumt.
+create table if not exists stimmen_log (
+  id         bigint generated always as identity primary key,
+  ip_hash    text not null,
+  created_at timestamptz not null default now()
+);
+create index if not exists stimmen_log_ip_idx on stimmen_log (ip_hash, created_at);
+alter table stimmen_log enable row level security;
+
+-- Denormalisierter Zähler auf meldungen, per Trigger gepflegt (kann nicht driften).
+alter table meldungen add column if not exists stimmen int not null default 0;
+
+create or replace function pflege_stimmenzahl()
+returns trigger language plpgsql as $$
+begin
+  if tg_op = 'INSERT' then
+    update meldungen set stimmen = stimmen + 1 where id = new.meldung_id;
+  elsif tg_op = 'DELETE' then
+    update meldungen set stimmen = greatest(stimmen - 1, 0) where id = old.meldung_id;
+  end if;
+  return null;
+end; $$;
+
+drop trigger if exists stimmen_hoch on stimmen;
+create trigger stimmen_hoch after insert on stimmen
+  for each row execute function pflege_stimmenzahl();
+drop trigger if exists stimmen_runter on stimmen;
+create trigger stimmen_runter after delete on stimmen
+  for each row execute function pflege_stimmenzahl();
+
+-- Öffentlicher Lesezugriff NUR auf den Zähler (Spalten-Grant erweitern!).
+grant select (id, created_at, art, text, name, lat, lng, radius_m,
+              kontakt, kontakt_modus, postfach_pubkey, laeuft_ab_am, stimmen)
+  on table public.meldungen to anon;
+
+-- Stimme abgeben/umschalten (race-safe über den Unique-Constraint).
+create or replace function meldung_stimme(p_meldung_id bigint)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare
+  v_ip text; v_hash text; v_count int; v_da boolean; v_zahl int;
+begin
+  if not exists (select 1 from meldungen
+                 where id = p_meldung_id
+                   and (laeuft_ab_am is null or laeuft_ab_am > now())) then
+    return jsonb_build_object('ok', false, 'fehler', 'Diese Meldung gibt es nicht (mehr).');
+  end if;
+
+  v_ip := coalesce(current_setting('request.headers', true)::json ->> 'x-forwarded-for', '');
+  v_ip := trim(split_part(v_ip, ',', 1));
+  v_hash := md5('fundbuero|' || v_ip);
+
+  if exists (select 1 from sperren where wert = v_hash) then
+    return jsonb_build_object('ok', false, 'fehler', 'Diese Anfrage wurde gesperrt.');
+  end if;
+
+  select count(*) into v_count from stimmen_log
+    where ip_hash = v_hash and created_at > now() - interval '1 hour';
+  if v_count >= 60 then
+    return jsonb_build_object('ok', false, 'fehler', 'Zu viele Stimmen in kurzer Zeit — versuch es später nochmal.');
+  end if;
+
+  insert into stimmen_log (ip_hash) values (v_hash);
+  delete from stimmen_log where created_at < now() - interval '48 hours';
+
+  select exists (select 1 from stimmen
+                 where meldung_id = p_meldung_id and ip_hash = v_hash) into v_da;
+  if v_da then
+    delete from stimmen where meldung_id = p_meldung_id and ip_hash = v_hash;
+  else
+    begin
+      insert into stimmen (meldung_id, ip_hash) values (p_meldung_id, v_hash);
+    exception when unique_violation then
+      null; -- Parallel-Klick: schon vorhanden → als „gestimmt" behandeln
+    end;
+  end if;
+
+  select m.stimmen into v_zahl from meldungen m where m.id = p_meldung_id;
+  select exists (select 1 from stimmen
+                 where meldung_id = p_meldung_id and ip_hash = v_hash) into v_da;
+  return jsonb_build_object('ok', true, 'stimmen', coalesce(v_zahl, 0), 'gestimmt', v_da);
+end; $$;
+
+-- Eigene Stimmen (Button-Zustand beim Laden) — gleiche IP-Ableitung.
+create or replace function meine_stimmen()
+returns table (meldung_id bigint)
+language sql security definer set search_path = public as $$
+  select s.meldung_id from stimmen s
+  where s.ip_hash = md5('fundbuero|' || trim(split_part(
+    coalesce(current_setting('request.headers', true)::json ->> 'x-forwarded-for', ''), ',', 1)));
+$$;
