@@ -900,6 +900,15 @@ function zeigePostfachDialog(id, token, text, modus, privat) {
   if (nrEl) { nrEl.textContent = nrText; }
   const linkEl = document.getElementById('postfachLinkText');
   if (linkEl) { linkEl.textContent = url; }
+
+  // Fette Warnung — je nach Weg anders formuliert.
+  const warnung = document.getElementById('schluesselWarnung');
+  if (warnung) {
+    warnung.textContent = modus === 'offen'
+      ? '⚠️ WICHTIG: Nur mit diesem Link kannst du deinen Beitrag später wieder löschen. Speichere ihn jetzt — es gibt keine zweite Chance, auch wir können ihn nicht wiederherstellen!'
+      : '⚠️ WICHTIG: Dieser Link ENTHÄLT DEINEN SCHLÜSSEL — nur damit kannst du verschlüsselte Antworten lesen. Speichere ihn jetzt: kopieren, als Datei sichern oder an dich selbst mailen. Es gibt keine zweite Chance, auch wir können ihn nicht wiederherstellen!';
+  }
+
   setzePostfachStatus('', false);
 
   speicherePostfach({
@@ -945,6 +954,36 @@ function mailePostfachLink() {
   window.location.href = 'mailto:?subject=' + betreff + '&body=' + rumpf;
 }
 
+// „Als Datei sichern": lädt eine kleine Textdatei mit dem Schlüssel-Link —
+// funktioniert auch ohne Mailprogramm. Die Datei enthält den Schlüssel,
+// deshalb liegt die Verantwortung beim Poster (so gewollt, E2E).
+function speicherePostfachDatei() {
+  if (!aktuellePostfachUrl) { return; }
+  const inhalt = [
+    'Digitales Fundbüro — dein geheimer Zugang',
+    '',
+    'WICHTIG: Diese Datei enthält deinen Schlüssel.',
+    'Nur damit kannst du verschlüsselte Antworten lesen und deinen',
+    'Beitrag verwalten/löschen. Auch der Betreiber kann ihn nicht',
+    'wiederherstellen — bewahre diese Datei sicher auf',
+    '(z. B. in deiner Cloud oder einem Ordner).',
+    '',
+    aktuellePostfachUrl,
+    ''
+  ].join('\n');
+
+  const blob = new Blob([inhalt], { type: 'text/plain;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'digitales-fundbuero-postfach.txt';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(function () { URL.revokeObjectURL(url); }, 5000);
+  setzePostfachStatus('Datei gespeichert — leg sie gut weg!', true);
+}
+
 // Kontaktweg: smarter Pill-Switch — aktive, exklusive Wahl.
 function setzeKontaktModus(modus) {
   if (modus !== 'offen' && modus !== 'postfach') { return; }
@@ -981,6 +1020,9 @@ function verdrahtePostfach() {
 
   const mailen = document.getElementById('btnPostfachMailen');
   if (mailen) { mailen.addEventListener('click', mailePostfachLink); }
+
+  const speichern = document.getElementById('btnPostfachSpeichern');
+  if (speichern) { speichern.addEventListener('click', speicherePostfachDatei); }
 
   const fertig = document.getElementById('btnPostfachFertig');
   if (fertig) {

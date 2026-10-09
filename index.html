@@ -16,7 +16,7 @@
   <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
   <!-- Asset-Version bei jedem CSS/JS-Deploy hochzählen (gegen Cache-Mixe) -->
-  <link rel="stylesheet" href="style.css?v=8">
+  <link rel="stylesheet" href="style.css?v=9">
   <!-- Umami (self-hosted, cookieless): nur die Live-Domain zählen, DNT wird respektiert -->
   <script defer src="https://stats.bitmancer.net/script.js" data-website-id="74c865dc-4cc3-4771-bb3f-c7bf7cf87c2a" data-domains="bitm4ncer.github.io" data-do-not-track="true" data-exclude-hash="true"></script>
 </head>
@@ -203,20 +203,23 @@
         <b>Bewahre den Link unbedingt auf</b> — mit ihm kannst du deinen Beitrag auch jederzeit wieder löschen.
       </p>
       <div class="postfachLink" id="postfachLinkText"></div>
+      <div class="schluesselWarnung" id="schluesselWarnung">⚠️ WICHTIG: Dieser Link enthält deinen Schlüssel. Speichere ihn jetzt — ohne ihn gibt es keine zweite Chance!</div>
       <div class="kontaktFuss">
         <button type="button" id="btnPostfachKopieren" class="pill kontaktSenden"><span class="ico" data-ico="clipboard"></span> Link kopieren</button>
+        <button type="button" id="btnPostfachSpeichern" class="pill"><span class="ico" data-ico="schloss"></span> Als Datei sichern</button>
         <button type="button" id="btnPostfachMailen" class="pill"><span class="ico" data-ico="brief"></span> An mich selbst mailen</button>
         <button type="button" id="btnPostfachFertig" class="pill">Fertig</button>
       </div>
+      <div class="postfachMerker">Zusätzlich merkt sich dieser Browser den Schlüssel — abrufbar über „Meine Beiträge" unten im Fuß, bis du die Browserdaten löschst.</div>
       <div id="postfachStatus" class="formStatus" role="status" aria-live="polite"></div>
     </div>
   </dialog>
 
-  <script src="config.js?v=8"></script>
-  <script src="logic.js?v=8"></script>
-  <script src="icons.js?v=8"></script>
-  <script src="krypto.js?v=8"></script>
+  <script src="config.js?v=9"></script>
+  <script src="logic.js?v=9"></script>
+  <script src="icons.js?v=9"></script>
+  <script src="krypto.js?v=9"></script>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <script src="app.js?v=8"></script>
+  <script src="app.js?v=9"></script>
 </body>
 </html>

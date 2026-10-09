@@ -85,7 +85,8 @@
       var meta = document.createElement('div');
       meta.className = 'postfachMeta';
       var modusText = eintrag.modus === 'offen' ? 'offener Kontakt' : 'anonymes Postfach';
-      meta.textContent = eintrag.nr + ' · ' + modusText + (eintrag.titel ? (' · „' + eintrag.titel + '…“') : '');
+      meta.textContent = eintrag.nr + ' · ' + modusText + (eintrag.titel ? (' · „' + eintrag.titel + '…“') : '') +
+        (eintrag.privat ? ' · Schlüssel lokal gemerkt' : '');
 
       var knopf = document.createElement('button');
       knopf.type = 'button';
@@ -133,6 +134,12 @@
       }
 
       kopfBox.appendChild(baueBeitragKopf(token, beitrag));
+      if (beitrag.kontakt_modus === 'postfach' && !privat) {
+        var tip = document.createElement('div');
+        tip.className = 'postfachMeta';
+        tip.textContent = 'Hinweis: Ohne den vollständigen Link (mit Schlüssel) bleiben die Antworten verschlüsselt.';
+        kopfBox.appendChild(tip);
+      }
 
       var nummer = 'Nr. ' + FundbueroLogik.formatNummer(beitrag.id, beitrag.created_at);
       if (beitrag.kontakt_modus === 'postfach') {
