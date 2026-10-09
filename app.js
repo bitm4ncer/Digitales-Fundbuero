@@ -20,10 +20,12 @@
 
 /* ---------- 1. State ---------- */
 
-// filter: 'alle' | 'verloren' | 'gefunden' | 'verschenken'
+// filter: 'alle' | 'verloren' | 'gefunden' | 'verschenken' | 'gesucht'
+// sort: 'neu' (id desc) | 'beliebt' (Stimmen desc); stimmenAktiv: ist die
+// Stimmen-Spalte geladen (Migration Abschnitt 6)? Sonst bleibt die Vote-UI aus.
 // composer: Eingaben des Formulars. standort (Task 7) ist null (kein
 // Standort) oder { lat, lng, radius_m }; radius_m null = genauer Punkt.
-const state = { meldungen: [], filter: 'alle', composer: { art: 'verloren', standort: null, kontaktModus: '' } };
+const state = { meldungen: [], filter: 'alle', sort: 'neu', stimmenAktiv: false, composer: { art: 'verloren', standort: null, kontaktModus: '' } };
 
 // sendet: Reentrancy-Guard — während eines laufenden POST ist der Absende-Button gesperrt.
 // karte/pinEbene/kreisEbene: Leaflet-Instanz der Sidebar (Task 6); pinAnzahl speist
@@ -151,16 +153,18 @@ function versteckeStatusHinweis() {
 }
 
 // Spalten fürs Laden. kontakt/kontakt_modus stammen aus dem Kontakt-Setup
-// (docs/supabase-setup.sql, Schritt 4): fehlen sie noch, fällt die App
-// einmalig auf die Basisspalten zurück — Kontaktzeile/Knopf bleiben dann aus.
+// (docs/supabase-setup.sql, Schritt 4), stimmen aus dem Stimmen-Setup
+// (Abschnitt 6): fehlen sie noch, fällt die App stufenweise auf schmalere
+// Spaltenlisten zurück — Kontaktzeile/Knopf bzw. Vote-UI bleiben dann aus.
 const FELDER_BASIS = 'id,created_at,art,text,name,lat,lng,radius_m';
 const FELDER_KONTAKT = FELDER_BASIS + ',kontakt,kontakt_modus,postfach_pubkey,laeuft_ab_am';
+const FELDER_STIMMEN = FELDER_KONTAKT + ',stimmen';
 
-function holeMeldungen(felder) {
+function holeMeldungen(felder, order) {
   const controller = new AbortController();
   const timer = setTimeout(function () { controller.abort(); }, FETCH_TIMEOUT_MS);
 
-  return fetch(supabaseBasis() + '/rest/v1/meldungen?select=' + felder + '&order=id.desc&limit=200', {
+  return fetch(supabaseBasis() + '/rest/v1/meldungen?select=' + felder + '&order=' + (order || 'id.desc') + '&limit=200', {
     headers: supabaseHeader(),
     signal: controller.signal
   }).then(function (antwort) {
@@ -181,21 +185,36 @@ function ladeMeldungen() {
     return Promise.resolve();
   }
 
-  return holeMeldungen(FELDER_KONTAKT).catch(function (fehler) {
-    // Kontakt-Spalten fehlen noch (z. B. vor dem Setup-SQL):
-    // einmalig ohne sie erneut laden — der Rest bleibt ganz normal.
-    if (fehler && fehler.status === 400) {
-      return holeMeldungen(FELDER_BASIS);
-    }
-    throw fehler;
-  }).then(function (daten) {
-    state.meldungen = Array.isArray(daten) ? daten : [];
-    versteckeStatusHinweis();
-    renderFeed();
-  }).catch(function (fehler) {
-    // HTTP-Fehler wie bisher; AbortError/Netzfehler → statusAus null → fehlerText(null).
-    zeigeStatusHinweis(FundbueroLogik.fehlerText(statusAus(fehler)));
-  });
+  return holeMeldungen(FELDER_STIMMEN, FundbueroLogik.orderFuerSortierung(state.sort))
+    .then(function (daten) {
+      state.stimmenAktiv = true; // Stimmen-Spalte vorhanden → Vote-UI an
+      return daten;
+    })
+    .catch(function (fehler) {
+      // Stimmen-Spalte fehlt (Abschnitt 6 nicht gelaufen): eine Stufe
+      // ohne sie laden — „Beliebt" fällt auf „Neu", Vote-UI bleibt aus.
+      if (fehler && fehler.status === 400) {
+        state.stimmenAktiv = false;
+        state.sort = 'neu';
+        return holeMeldungen(FELDER_KONTAKT).catch(function (fehlerKontakt) {
+          // Ganz alte DB (kein Kontakt-Setup): noch eine Stufe zurück.
+          if (fehlerKontakt && fehlerKontakt.status === 400) {
+            return holeMeldungen(FELDER_BASIS);
+          }
+          throw fehlerKontakt;
+        });
+      }
+      throw fehler;
+    })
+    .then(function (daten) {
+      state.meldungen = Array.isArray(daten) ? daten : [];
+      versteckeStatusHinweis();
+      renderFeed();
+    })
+    .catch(function (fehler) {
+      // HTTP-Fehler wie bisher; AbortError/Netzfehler → statusAus null → fehlerText(null).
+      zeigeStatusHinweis(FundbueroLogik.fehlerText(statusAus(fehler)));
+    });
 }
 
 // Task 5: POST einer validierten Meldung. Body: art, text, name, kontakt,
@@ -252,24 +271,25 @@ function istNeu(createdAt) {
   return alterMs < EIN_TAG_MS;
 }
 
-// Filtert nach state.filter und sortiert neueste zuerst (id desc,
-// wie später der DB-Abruf mit order=id.desc).
+// Filtert nach state.filter. „Neu" sortiert id desc (wie der DB-Abruf mit
+// order=id.desc); „Beliebt" übernimmt die Server-Reihenfolge (stimmen.desc).
 function sortierteMeldungen() {
   const gefiltert = state.filter === 'alle'
     ? state.meldungen
     : state.meldungen.filter(function (meldung) { return meldung.art === state.filter; });
+  if (state.sort === 'beliebt') { return gefiltert.slice(); }
   return gefiltert.slice().sort(function (a, b) { return Number(b.id) - Number(a.id); });
 }
 
 // Zähler an den Pills ("Alle (4) · Verloren (2) · Gefunden (2)")
 // und Markierung des aktiven Filters.
 function aktualisierePills() {
-  const anzahl = { alle: state.meldungen.length, verloren: 0, gefunden: 0, verschenken: 0 };
+  const anzahl = { alle: state.meldungen.length, verloren: 0, gefunden: 0, verschenken: 0, gesucht: 0 };
   state.meldungen.forEach(function (meldung) {
     if (anzahl[meldung.art] != null) { anzahl[meldung.art] += 1; }
   });
 
-  const beschriftung = { alle: 'Alle', verloren: 'Verloren', gefunden: 'Gefunden', verschenken: 'Verschenken' };
+  const beschriftung = { alle: 'Alle', verloren: 'Verloren', gefunden: 'Gefunden', verschenken: 'Verschenken', gesucht: 'Gesucht' };
   document.querySelectorAll('#filterBar .pill[data-filter]').forEach(function (pill) {
     const wert = pill.dataset.filter;
     pill.textContent = beschriftung[wert] + ' (' + anzahl[wert] + ')';
@@ -277,6 +297,15 @@ function aktualisierePills() {
     pill.classList.toggle('pillAktiv', aktiv);
     pill.setAttribute('aria-pressed', aktiv ? 'true' : 'false');
   });
+
+  // Sortier-Pill „Beliebt": nur zeigen, wenn die Stimmen-Spalte da ist.
+  const sortPill = document.getElementById('sortBeliebt');
+  if (sortPill) {
+    sortPill.hidden = !state.stimmenAktiv;
+    const sortAktiv = state.sort === 'beliebt';
+    sortPill.classList.toggle('pillAktiv', sortAktiv);
+    sortPill.setAttribute('aria-pressed', sortAktiv ? 'true' : 'false');
+  }
 }
 
 // Klont das Template und füllt es mit einer Meldung.
@@ -1427,6 +1456,18 @@ function verdrahteEvents() {
       const ziel = ereignis.target;
       const pill = ziel && ziel.closest ? ziel.closest('.pill[data-filter]') : null;
       if (pill) { setFilter(pill.dataset.filter); }
+    });
+  }
+
+  const sortBeliebt = document.getElementById('sortBeliebt');
+  if (sortBeliebt) {
+    sortBeliebt.addEventListener('click', function () {
+      // Sortier-Toggle „Neu" ↔ „Beliebt" — lädt frisch in der neuen Ordnung.
+      state.sort = state.sort === 'beliebt' ? 'neu' : 'beliebt';
+      const aktiv = state.sort === 'beliebt';
+      sortBeliebt.classList.toggle('pillAktiv', aktiv);
+      sortBeliebt.setAttribute('aria-pressed', aktiv ? 'true' : 'false');
+      ladeMeldungen();
     });
   }
 
