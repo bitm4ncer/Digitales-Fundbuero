@@ -27,6 +27,15 @@ Stand: 2026-10-09 · vor jedem „fertig" einmal durchgehen (Desktop 1280px+, zu
 - [ ] Deutschland-Default beim ersten Öffnen, Zoom per +/−, kein Scroll-Zoom
 - [ ] „Zur Meldung ↓" springt zur richtigen Karte in der Liste
 
+## Stimmen (▲)
+- [ ] Klick auf „▲ N" → +1 & gedrückt; Reload (F5) → Zustand und Zahl konsistent (Server-Wahrheit)
+- [ ] Nochmal klicken → zurück (−1); Doppelklick → nur 1 Request
+- [ ] „🏆 Beliebt" sortiert nach Stimmen (Gleichstand: neueste zuerst), kombiniert mit Filtern; „Neu" zurück
+- [ ] Fehlerfall (fetch-Stub): Rollback sichtbar + Meldung im Status-Banner
+- [ ] Migration fehlt/DB ohne Spalte: Feed lädt, keine Vote-UI (Simulation via fetch-Stub)
+- [ ] Mobil: Button bedienbar, nichts läuft über
+- [ ] Drossel (60 Aktionen/Std./IP-Hash): abgelehnte Stimme zeigt Server-Meldung, Zähler bleibt konsistent
+
 ## Tastatur
 - [ ] A–Z, 0–9, Ä Ö Ü ß, . , ? !, LEERTASTE, ⌫ — Einfügen an Cursorposition
 - [ ] Auswahl im Textfeld wird durch Klick-Taste ersetzt; ⌫ löscht das Zeichen davor
