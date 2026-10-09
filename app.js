@@ -1,7 +1,7 @@
 /* =========================================================
    Digitales Fundbüro — app.js
-   Ausbaustufe Task 7: Standort im Formular (genauer Punkt oder
-   Bereich) mit Mini-Karte — aufbauend auf Task 6 (Karten-Sidebar),
+   Ausbaustufe Task 8: Karten-Leerzustand (#mapLeer) — aufbauend
+   auf Task 7 (Standort im Formular), Task 6 (Karten-Sidebar),
    Task 5 (echter geteilter Feed), Task 4 (Composer mit Tastatur/
    Validierung) und Task 3 (Feed-Liste).
 
@@ -350,8 +350,8 @@ function aktualisiereKarteToggle() {
 }
 
 // Neu zeichnen: erst die Pins der (gefilterten) Liste zählen — damit stimmen
-// Zähler und Mobil-Button auch ohne (oder vor) Leaflet — dann Marker- und
-// Kreis-Ebene leeren und frisch aufbauen. Der Tile-Layer bleibt bestehen.
+// Zähler, Leerzustand und Mobil-Button auch ohne (oder vor) Leaflet — dann
+// Marker- und Kreis-Ebene leeren und frisch aufbauen. Der Tile-Layer bleibt.
 function renderKarte() {
   const sichtbar = sortierteMeldungen();
   pinAnzahl = 0;
@@ -359,6 +359,10 @@ function renderKarte() {
     if (FundbueroLogik.istGueltigeKoordinate(meldung.lat, meldung.lng)) { pinAnzahl += 1; }
   });
   aktualisiereKarteToggle();
+
+  // Task 8: Hinweis nur, wenn (in der aktuellen Filterung) kein Pin da ist.
+  const leerHinweis = document.getElementById('mapLeer');
+  if (leerHinweis) { leerHinweis.hidden = pinAnzahl !== 0; }
 
   if (!karte || !pinEbene || !kreisEbene) { return; }
 
