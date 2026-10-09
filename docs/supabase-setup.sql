@@ -75,7 +75,8 @@ create index if not exists nachrichten_meldung_idx on nachrichten (meldung_id);
 alter table nachrichten enable row level security;
 -- bewusst KEINE Policies: nur die Funktionen unten (SECURITY DEFINER) kommen ran.
 
--- Sperrliste (Missbrauch): Betreiber trägt E-Mail-Hash oder ip_hash ein.
+-- Sperrliste (Missbrauch): Betreiber trägt den ip_hash eintragen (mehr sieht
+-- der Server bei E2E-Verschlüsselung ohnehin nicht).
 create table if not exists sperren (
   id         bigint generated always as identity primary key,
   wert       text not null unique,
