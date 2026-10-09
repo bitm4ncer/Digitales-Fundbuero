@@ -97,19 +97,6 @@ button:focus-visible, input:focus-visible, textarea:focus-visible {
   text-shadow: 0 2px 0 #0b3a78, 0 4px 8px rgba(0, 0, 0, .3);
 }
 
-.sticker {
-  transform: rotate(10deg);
-  background: var(--gelb);
-  border: 2px solid #fff;
-  border-radius: 9px;
-  padding: 2px 7px;
-  font-size: 9px;
-  font-weight: bold;
-  color: var(--gelb-braun);
-  box-shadow: 0 2px 0 #b58900;
-  white-space: nowrap;
-}
-
 .sprechblase {
   display: block;
   width: fit-content;
