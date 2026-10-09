@@ -484,15 +484,29 @@ button:focus-visible, input:focus-visible, textarea:focus-visible {
 
 /* ---------- Ortssuche (Nominatim/OpenStreetMap) ---------- */
 
+/* Suchfeld + Knopf als eine bündige Gruppe (gemeinsamer Rahmen) */
 .standortSuche {
   display: flex;
-  gap: 6px;
+  gap: 0;
   margin-bottom: 8px;
 }
 
 .standortSucheFeld {
   flex: 1;
   min-width: 0;
+  border-radius: 8px 0 0 8px;
+  border-right: 0;
+}
+
+.standortSuche .pillAktion {
+  margin-left: 0;
+  border: 2px solid var(--blau-rand);
+  border-radius: 0 8px 8px 0;
+  background: linear-gradient(#fff, #e8f1ff);
+  color: var(--aktion);
+  font-size: 12px;
+  padding: 5px 12px;
+  white-space: nowrap;
 }
 
 .ortSucheStatus {

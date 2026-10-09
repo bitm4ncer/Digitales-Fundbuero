@@ -8,7 +8,8 @@
   <meta name="description" content="Das Digitale Fundbüro — Verlorenes melden, Gefundenes zurückgeben. Mit Karte, Tastatur und ganz viel 2003.">
   <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-  <link rel="stylesheet" href="style.css">
+  <!-- Asset-Version bei jedem CSS/JS-Deploy hochzählen (gegen Cache-Mixe) -->
+  <link rel="stylesheet" href="style.css?v=2">
 </head>
 <body>
   <div class="seite">
@@ -137,9 +138,9 @@
     </article>
   </template>
 
-  <script src="config.js"></script>
-  <script src="logic.js"></script>
+  <script src="config.js?v=2"></script>
+  <script src="logic.js?v=2"></script>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <script src="app.js"></script>
+  <script src="app.js?v=2"></script>
 </body>
 </html>
