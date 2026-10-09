@@ -11,3 +11,6 @@ Desktop.ini
 
 # Worktrees (isoliertes Feature-Arbeiten)
 .worktrees/
+
+# Von Tools mit unexpandiertem ~ erzeugte Ordner
+~/
