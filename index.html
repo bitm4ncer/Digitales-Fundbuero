@@ -38,6 +38,7 @@
           <button type="button" class="pill pillAktiv" data-filter="alle">Alle (0)</button>
           <button type="button" class="pill" data-filter="verloren">Verloren (0)</button>
           <button type="button" class="pill" data-filter="gefunden">Gefunden (0)</button>
+          <button type="button" class="pill" data-filter="verschenken">Verschenken (0)</button>
           <button type="button" id="aktualisieren" class="pill pillAktion">🔄 Aktualisieren</button>
         </div>
 
@@ -50,11 +51,12 @@
 
         <!-- Composer -->
         <form id="composer" class="composer" novalidate>
-          <h2 class="composerTitel">Was hast DU verloren?</h2>
+          <h2 class="composerTitel" id="composerTitel">Was hast DU verloren?</h2>
 
           <div class="artPills" role="group" aria-label="Art der Meldung">
             <button type="button" class="artPill" data-art="verloren" aria-pressed="true">● VERLOREN</button>
             <button type="button" class="artPill" data-art="gefunden" aria-pressed="false">○ GEFUNDEN</button>
+            <button type="button" class="artPill" data-art="verschenken" aria-pressed="false">○ VERSCHENKEN</button>
           </div>
 
           <div class="composerZeile">
@@ -73,13 +75,18 @@
               <button type="button" id="btnPunkt" class="modusPill" aria-pressed="false">🎯 Genauer Punkt</button>
               <button type="button" id="btnBereich" class="modusPill" aria-pressed="true">⭕ Bereich</button>
             </div>
+            <div class="standortSuche">
+              <input id="standortSuche" class="composerFeld standortSucheFeld" type="text" maxlength="120" placeholder="Ort suchen — z. B. ‚Skatepark München'" aria-label="Ort suchen">
+              <button type="button" id="btnOrtSuche" class="pill pillAktion">🔍 Suchen</button>
+            </div>
+            <div id="ortSucheStatus" class="ortSucheStatus" role="status" aria-live="polite"></div>
             <div id="mapMini" class="mapMini"></div>
             <div class="radiusZeile">
               <label for="radius">Radius:</label>
               <input id="radius" type="range" min="50" max="1000" step="50" value="300">
               <span id="radiusVal">ca. 300 m</span>
             </div>
-            <div class="standortTipp">Tipp: „Bereich" statt genauer Punkt — so bleibt dein genauer Ort privat.</div>
+            <div class="standortTipp">Tipp: „Bereich" statt genauer Punkt — so bleibt dein genauer Ort privat. · Ortssuche: © OpenStreetMap-Mitwirkende (Nominatim)</div>
           </div>
 
           <div class="composerFuss">

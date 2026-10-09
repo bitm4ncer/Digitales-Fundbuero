@@ -63,8 +63,8 @@
     var kontakt = typeof eingabe.kontakt === 'string' ? eingabe.kontakt.trim() : '';
     var fehler = [];
 
-    if (art !== 'verloren' && art !== 'gefunden') {
-      fehler.push('Bitte wähle aus, ob du etwas verloren oder gefunden hast.');
+    if (art !== 'verloren' && art !== 'gefunden' && art !== 'verschenken') {
+      fehler.push('Bitte wähle eine Kategorie: verloren, gefunden oder zu verschenken.');
     }
     if (text.length < 3) {
       fehler.push('Schreib mindestens 3 Zeichen — sonst findet die Lupe nichts.');

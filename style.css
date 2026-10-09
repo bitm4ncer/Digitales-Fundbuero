@@ -20,6 +20,8 @@
   --rot2: #e0342a;
   --gruen1: #7ee08a;
   --gruen2: #1fa53c;
+  --orange1: #ffb85e;
+  --orange2: #e07a00;
   --verlauf-blau: linear-gradient(180deg, #4b8de0, #1d5eb8 60%, #164a96);
   --verlauf-gelb: linear-gradient(#ffe25e, #f7b400);
   --wortmarke: 'Arial Rounded MT Bold', 'Arial Black', Arial, sans-serif;
@@ -217,6 +219,11 @@ button:focus-visible, input:focus-visible, textarea:focus-visible {
   box-shadow: inset 0 1px 0 #c9f5cf;
 }
 
+.badge.verschenken {
+  background: linear-gradient(var(--orange1), var(--orange2));
+  box-shadow: inset 0 1px 0 #ffe6c2;
+}
+
 .meldungInhalt {
   flex: 1;
   min-width: 0;
@@ -307,6 +314,13 @@ button:focus-visible, input:focus-visible, textarea:focus-visible {
   background: linear-gradient(var(--gruen1), var(--gruen2));
   border-color: var(--gruen2);
   box-shadow: inset 0 1px 0 #c9f5cf;
+}
+
+.artPill[data-art="verschenken"][aria-pressed="true"] {
+  color: #fff;
+  background: linear-gradient(var(--orange1), var(--orange2));
+  border-color: var(--orange2);
+  box-shadow: inset 0 1px 0 #ffe6c2;
 }
 
 .composerZeile {
@@ -465,6 +479,26 @@ button:focus-visible, input:focus-visible, textarea:focus-visible {
 .standortTipp {
   margin-top: 4px;
   font-size: 10px;
+  color: var(--blau-meta);
+}
+
+/* ---------- Ortssuche (Nominatim/OpenStreetMap) ---------- */
+
+.standortSuche {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.standortSucheFeld {
+  flex: 1;
+  min-width: 0;
+}
+
+.ortSucheStatus {
+  min-height: 14px;
+  margin: -2px 0 8px;
+  font-size: 11px;
   color: var(--blau-meta);
 }
 

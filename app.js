@@ -20,7 +20,7 @@
 
 /* ---------- 1. State ---------- */
 
-// filter: 'alle' | 'verloren' | 'gefunden'
+// filter: 'alle' | 'verloren' | 'gefunden' | 'verschenken'
 // composer: Eingaben des Formulars. standort (Task 7) ist null (kein
 // Standort) oder { lat, lng, radius_m }; radius_m null = genauer Punkt.
 const state = { meldungen: [], filter: 'alle', composer: { art: 'verloren', standort: null } };
@@ -39,7 +39,7 @@ let markerMini = null;
 let kreisMini = null;
 let standortModus = 'bereich';
 
-const FILTER_WERTE = ['alle', 'verloren', 'gefunden'];
+const FILTER_WERTE = ['alle', 'verloren', 'gefunden', 'verschenken'];
 const EIN_TAG_MS = 24 * 60 * 60 * 1000; // Fenster für das NEU!-Chip
 const TEXT_MAX = 220; // Anzeige-Kürzung im Feed
 const EINGABE_MAX = 500; // maxlength am #eingabeText; Zähler zeigt n/500
@@ -52,13 +52,24 @@ const KARTE_MITTE = [51.163, 10.447]; // Deutschland-Mitte
 const KARTE_ZOOM = 6;
 const KARTE_TILES = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
 const KARTE_ATTRIBUTION = '© OpenStreetMap-Mitwirkende';
+const NOMINATIM_URL = 'https://nominatim.openstreetmap.org/search'; // Ortssuche (OpenStreetMap), kein Key nötig
 const MOBIL_QUERY = '(max-width: 860px)'; // synchron zu style.css
 const RADIUS_START = 300; // Standort-Regler (Task 7): 50–1000 m, Start 300
 
 // Pin-Farben/-Buchstaben exakt wie im Mockup (hell → dunkel).
 const PIN_FARBEN = {
   verloren: { hell: '#ff8a80', dunkel: '#e0342a', buchstabe: 'V' },
-  gefunden: { hell: '#7ee08a', dunkel: '#1fa53c', buchstabe: 'G' }
+  gefunden: { hell: '#7ee08a', dunkel: '#1fa53c', buchstabe: 'G' },
+  verschenken: { hell: '#ffb85e', dunkel: '#e07a00', buchstabe: 'S' }
+};
+
+// Badge-Texte und Composer-Überschrift je Kategorie (die Überschrift passt
+// sich der gewählten Kategorie an: verloren / gefunden / verschenken).
+const ART_LABEL = { verloren: 'VERLOREN', gefunden: 'GEFUNDEN', verschenken: 'VERSCHENKEN' };
+const TITEL_TEXT = {
+  verloren: 'Was hast DU verloren?',
+  gefunden: 'Was hast DU gefunden?',
+  verschenken: 'Was willst DU verschenken?'
 };
 
 // Tastatur-Reihen exakt wie im Mockup (brand-jamba-nummer.html):
@@ -226,13 +237,12 @@ function sortierteMeldungen() {
 // Zähler an den Pills ("Alle (4) · Verloren (2) · Gefunden (2)")
 // und Markierung des aktiven Filters.
 function aktualisierePills() {
-  const anzahl = { alle: state.meldungen.length, verloren: 0, gefunden: 0 };
+  const anzahl = { alle: state.meldungen.length, verloren: 0, gefunden: 0, verschenken: 0 };
   state.meldungen.forEach(function (meldung) {
-    if (meldung.art === 'verloren') { anzahl.verloren += 1; }
-    else if (meldung.art === 'gefunden') { anzahl.gefunden += 1; }
+    if (anzahl[meldung.art] != null) { anzahl[meldung.art] += 1; }
   });
 
-  const beschriftung = { alle: 'Alle', verloren: 'Verloren', gefunden: 'Gefunden' };
+  const beschriftung = { alle: 'Alle', verloren: 'Verloren', gefunden: 'Gefunden', verschenken: 'Verschenken' };
   document.querySelectorAll('#filterBar .pill[data-filter]').forEach(function (pill) {
     const wert = pill.dataset.filter;
     pill.textContent = beschriftung[wert] + ' (' + anzahl[wert] + ')';
@@ -248,8 +258,9 @@ function baueKarte(meldung, vorlage) {
   karte.id = 'meldung-' + meldung.id; // Task 6: Ziel für „Zur Meldung ↓" im Popup
 
   const badge = karte.querySelector('.badge');
-  badge.classList.add(meldung.art);
-  badge.textContent = meldung.art === 'gefunden' ? 'GEFUNDEN' : 'VERLOREN';
+  const art = ART_LABEL[meldung.art] ? meldung.art : 'verloren';
+  badge.classList.add(art);
+  badge.textContent = ART_LABEL[art];
 
   const name = String(meldung.name == null ? '' : meldung.name).trim();
 
@@ -314,10 +325,10 @@ function kuerzePopupText(text) {
 // dynamischen Texte durch FundbueroLogik.escapeHtml geschützt.
 function popupHtml(meldung) {
   const escape = FundbueroLogik.escapeHtml;
-  const gefunden = meldung.art === 'gefunden';
+  const art = ART_LABEL[meldung.art] ? meldung.art : 'verloren';
   const name = String(meldung.name == null ? '' : meldung.name).trim();
   const idText = escape(String(meldung.id));
-  return '<span class="badge ' + (gefunden ? 'gefunden' : 'verloren') + '">' + (gefunden ? 'GEFUNDEN' : 'VERLOREN') + '</span>' +
+  return '<span class="badge ' + art + '">' + ART_LABEL[art] + '</span>' +
     '<b class="popupText">' + escape(kuerzePopupText(meldung.text)) + '</b>' +
     '<div class="popupMeta">' +
       '<span class="popupNr">Nr. ' + escape(FundbueroLogik.formatNummer(meldung.id, meldung.created_at)) + '</span> · von ' +
@@ -538,6 +549,56 @@ function initialisiereMiniKarte() {
   setStandortModus(standortModus); // Kreis-Style und Radius-Zeile initial synchron
 }
 
+// Ortssuche (Task A, Variante 🅰️): tippen → Nominatim (OpenStreetMap) fragen
+// → hinspringen und Pin setzen; feinjustieren bleibt per Klick/Ziehen.
+// Fair-Use: nur auf Enter/Klick (kein Autocomplete), Button sperrt während
+// der Anfrage, Status nur per textContent (kein HTML-Sink).
+function sucheOrt() {
+  const feld = document.getElementById('standortSuche');
+  const knopf = document.getElementById('btnOrtSuche');
+  const status = document.getElementById('ortSucheStatus');
+  function setzeStatus(text) { if (status) { status.textContent = text; } }
+  if (!feld || (knopf && knopf.disabled)) { return; }
+
+  const query = feld.value.trim();
+  if (query.length < 3) { setzeStatus('Bitte mindestens 3 Zeichen eingeben.'); return; }
+  if (!karteMini) { setzeStatus('Karte ist nicht geladen — Ortssuche gerade nicht möglich.'); return; }
+
+  if (knopf) { knopf.disabled = true; }
+  setzeStatus('Suche läuft …');
+
+  const controller = (typeof AbortController === 'function') ? new AbortController() : null;
+  const timer = controller ? setTimeout(function () { controller.abort(); }, FETCH_TIMEOUT_MS) : null;
+
+  fetch(NOMINATIM_URL + '?format=jsonv2&limit=1&accept-language=de&q=' + encodeURIComponent(query), {
+    signal: controller ? controller.signal : undefined,
+    headers: { Accept: 'application/json' }
+  }).then(function (antwort) {
+    if (!antwort.ok) { throw new Error('HTTP ' + antwort.status); }
+    return antwort.json();
+  }).then(function (treffer) {
+    if (!Array.isArray(treffer) || !treffer.length) {
+      setzeStatus('Diesen Ort finde ich nicht — klick einfach in die Karte!');
+      return;
+    }
+    const lat = Number(treffer[0].lat);
+    const lng = Number(treffer[0].lon);
+    if (!FundbueroLogik.istGueltigeKoordinate(lat, lng)) {
+      setzeStatus('Diesen Ort finde ich nicht — klick einfach in die Karte!');
+      return;
+    }
+    karteMini.setView([lat, lng], 16);
+    setzeStandort(lat, lng);
+    const kurz = String(treffer[0].display_name || '').split(',').slice(0, 2).join(',').trim();
+    setzeStatus(kurz ? ('📍 ' + kurz + ' — Pin gesetzt, gern feinjustieren!') : '📍 Pin gesetzt — gern feinjustieren!');
+  }).catch(function () {
+    setzeStatus('Ortssuche gerade nicht erreichbar — klick einfach in die Karte.');
+  }).finally(function () {
+    if (timer) { clearTimeout(timer); }
+    if (knopf) { knopf.disabled = false; }
+  });
+}
+
 // Eine Tastatur-Taste als echter <button type="button"> mit
 // Mockup-Farbklasse (Umlaute gelb, Satzzeichen grau, ⌫ rot).
 function erzeugeTaste(kappe) {
@@ -592,11 +653,13 @@ function setFilter(filter) {
 
 // Art-Pills: Optik kommt übers CSS (aria-pressed), hier nur State + A11y.
 function setArt(art) {
-  if (art !== 'verloren' && art !== 'gefunden') { return; }
+  if (!ART_LABEL[art]) { return; }
   state.composer.art = art;
   document.querySelectorAll('#composer .artPill[data-art]').forEach(function (pill) {
     pill.setAttribute('aria-pressed', pill.dataset.art === art ? 'true' : 'false');
   });
+  const titel = document.getElementById('composerTitel');
+  if (titel) { titel.textContent = TITEL_TEXT[art]; }
 }
 
 // Aktuelle Cursor-/Selektionsposition (Fallback: Textende).
@@ -783,6 +846,18 @@ function verdrahteStandort() {
   const regler = document.getElementById('radius');
   if (regler) {
     regler.addEventListener('input', function () { setzeRadius(regler.value); });
+  }
+
+  // Ortssuche: Enter im Feld oder Klick auf „🔍 Suchen".
+  const suchFeld = document.getElementById('standortSuche');
+  if (suchFeld) {
+    suchFeld.addEventListener('keydown', function (ereignis) {
+      if (ereignis.key === 'Enter') { ereignis.preventDefault(); sucheOrt(); }
+    });
+  }
+  const suchKnopf = document.getElementById('btnOrtSuche');
+  if (suchKnopf) {
+    suchKnopf.addEventListener('click', sucheOrt);
   }
 }
 
