@@ -1,5 +1,7 @@
 # Digitales Fundbüro
 
+**🔗 Live:** <https://bitm4ncer.github.io/Digitales-Fundbuero/>
+
 Statische Y2K-Webseite, auf der Fundbüro-Meldungen („Verloren“ / „Gefunden“) öffentlich gepostet und im Feed oder auf einer Karte angezeigt werden. Vanilla JS ohne Build-Schritt, Supabase (REST) als Datenbank, Leaflet/OpenStreetMap für die Karte.
 
 - Feed mit Filtern `Alle · Verloren · Gefunden` und sticky Karten-Sidebar (mobil einklappbar via „🗺️ Karte anzeigen")
