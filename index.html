@@ -28,7 +28,7 @@
 
     <div class="ticker">★ Willkommen! Eintragen dauert 10 Sekunden — 100% kostenlos! ★</div>
 
-    <div id="statusHinweis" class="statusHinweis" hidden></div>
+    <div id="statusHinweis" class="statusHinweis" role="status" hidden></div>
 
     <main class="layout">
 
@@ -66,7 +66,7 @@
           <textarea id="eingabeText" class="composerFeld composerText" maxlength="500" placeholder="Gegenstand und Fundort beschreiben …" aria-label="Gegenstand und Fundort"></textarea>
           <div class="textFuss"><span id="zeichenZaehler" class="zeichenZaehler">0/500</span></div>
 
-          <div id="tastatur" class="tastatur" aria-label="Bildschirmtastatur"></div>
+          <div id="tastatur" class="tastatur" role="group" aria-label="Bildschirmtastatur"></div>
 
           <div id="standortBlock" class="standortBlock">
             <div class="standortKopf">📍 Standort (optional)</div>
@@ -95,8 +95,8 @@
 
       <!-- Karten-Sidebar (wird in Task 6 initialisiert) -->
       <aside id="mapBox" class="mapBox">
-        <button type="button" id="mapToggle" class="mapToggle" aria-expanded="true">🗺️ Karte anzeigen</button>
-        <div class="karteFenster">
+        <button type="button" id="mapToggle" class="mapToggle" aria-expanded="true" aria-controls="karteFenster">🗺️ Karte anzeigen</button>
+        <div id="karteFenster" class="karteFenster">
           <div class="karteKopf">
             <span class="karteTitel">🗺️ Karte der Fundstücke</span>
             <span class="pinZaehler">0 Pins</span>

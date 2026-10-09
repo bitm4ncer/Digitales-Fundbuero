@@ -45,6 +45,7 @@ const TEXT_MAX = 220; // Anzeige-Kürzung im Feed
 const EINGABE_MAX = 500; // maxlength am #eingabeText; Zähler zeigt n/500
 const POPUP_TEXT_MAX = 120; // Anzeige-Kürzung im Karten-Popup
 const HERVOR_MS = 2000; // So lange leuchtet die Feed-Karte nach „Zur Meldung ↓"
+const FETCH_TIMEOUT_MS = 10000; // Hängt das Amt (GET/POST), bricht der Abort-Timer den Request ab
 
 // Karten-Grunddaten laut Spec/Mockup (sidebar.html).
 const KARTE_MITTE = [51.163, 10.447]; // Deutschland-Mitte
@@ -117,6 +118,8 @@ function httpFehler(status) {
 }
 
 function statusAus(fehler) {
+  // Vom Timeout abgebrochene Requests zählen wie Netzfehler (kein HTTP-Status).
+  if (fehler && fehler.name === 'AbortError') { return null; }
   return fehler && typeof fehler.status === 'number' ? fehler.status : null;
 }
 
@@ -144,8 +147,12 @@ function ladeMeldungen() {
     return Promise.resolve();
   }
 
+  const controller = new AbortController();
+  const timer = setTimeout(function () { controller.abort(); }, FETCH_TIMEOUT_MS);
+
   return fetch(supabaseBasis() + '/rest/v1/meldungen?select=*&order=id.desc&limit=200', {
-    headers: supabaseHeader()
+    headers: supabaseHeader(),
+    signal: controller.signal
   }).then(function (antwort) {
     if (!antwort.ok) { throw httpFehler(antwort.status); }
     return antwort.json();
@@ -154,7 +161,10 @@ function ladeMeldungen() {
     versteckeStatusHinweis();
     renderFeed();
   }).catch(function (fehler) {
+    // HTTP-Fehler wie bisher; AbortError/Netzfehler → statusAus null → fehlerText(null).
     zeigeStatusHinweis(FundbueroLogik.fehlerText(statusAus(fehler)));
+  }).finally(function () {
+    clearTimeout(timer); // Timer auch bei Erfolg/HTTP-Fehler aufräumen
   });
 }
 
@@ -173,13 +183,19 @@ function postMeldung(daten) {
     radius_m: standort ? standort.radius_m : null
   };
 
+  const controller = new AbortController();
+  const timer = setTimeout(function () { controller.abort(); }, FETCH_TIMEOUT_MS);
+
   return fetch(supabaseBasis() + '/rest/v1/meldungen', {
     method: 'POST',
     headers: supabaseHeader({ 'Content-Type': 'application/json', Prefer: 'return=minimal' }),
-    body: JSON.stringify(koerper)
+    body: JSON.stringify(koerper),
+    signal: controller.signal
   }).then(function (antwort) {
     if (!antwort.ok) { throw httpFehler(antwort.status); }
     return null;
+  }).finally(function () {
+    clearTimeout(timer); // Timer auch bei Erfolg/HTTP-Fehler aufräumen
   });
 }
 
@@ -507,6 +523,12 @@ function initialisiereMiniKarte() {
 
   karteMini.on('click', function (ereignis) {
     if (ereignis && ereignis.latlng) { setzeStandort(ereignis.latlng.lat, ereignis.latlng.lng); }
+  });
+  // Klick/Tap direkt auf den Pin zählt ebenfalls als Standort (der Marker-
+  // Klick bubblt nicht zur Karte — deshalb eigener Handler, kein Doppel-Feuern).
+  markerMini.on('click', function () {
+    const punkt = markerMini.getLatLng();
+    setzeStandort(punkt.lat, punkt.lng);
   });
   markerMini.on('drag', function () {
     const punkt = markerMini.getLatLng();

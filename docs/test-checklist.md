@@ -7,7 +7,7 @@ Stand: 2026-10-09 · vor jedem „fertig" einmal durchgehen (Desktop 1280px+, zu
 - [ ] Karten zeigen Badge (rot/grün), `Nr.`, Name (leer → „Anonym"), Text ggf. gekürzt
 - [ ] `NEU!`-Sternchen nur bei Meldungen der letzten 24 h
 - [ ] Filter `Alle · Verloren · Gefunden` filtert Liste **und** Karte
-- [ ] Umschalter `📋 Liste | 🗺️ Karte` wechselt sauber; „Aktualisieren" lädt neu
+- [ ] Mobil: Karte ein-/einklappbar via `#mapToggle`; Desktop: sticky Karten-Sidebar sichtbar; „Aktualisieren" lädt neu
 - [ ] Leerzustand: Lupe + Spruch („Ich habe noch nichts gefunden …")
 
 ## Posten
