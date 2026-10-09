@@ -1,6 +1,7 @@
 /* „Mein Bereich": Beitrag anzeigen + löschen und Postfach lesen —
-   ausschließlich mit dem geheimen Token (aus dem Link #token oder dem
-   Browser-Gedächtnis). Alles wird per textContent gerendert (kein HTML-Sink). */
+   ausschließlich mit dem geheimen Link. Der private Schlüssel steckt IM
+   Link (hinter dem #, das nie an einen Server geht) und wird auch im
+   Browser-Gedächtnis gespeichert. Entschlüsselt wird hier im Browser. */
 
 (function () {
   'use strict';
@@ -66,7 +67,6 @@
     status.classList.toggle('ok', !!erfolg);
   }
 
-  // „Meine Beiträge (auf diesem Gerät)" aus dem Browser-Gedächtnis.
   function zeigeMeine() {
     var box = document.getElementById('postfachMeine');
     if (!box) { return; }
@@ -91,7 +91,7 @@
       knopf.type = 'button';
       knopf.className = 'pill';
       knopf.textContent = 'Öffnen';
-      knopf.addEventListener('click', function () { oeffne(eintrag.token); });
+      knopf.addEventListener('click', function () { oeffne(eintrag.token, eintrag.privat || ''); });
 
       zeile.appendChild(meta);
       zeile.appendChild(knopf);
@@ -99,14 +99,15 @@
     });
   }
 
-  function oeffne(token) {
-    if (token && window.location.hash !== '#' + token) {
-      window.location.hash = token;
+  function oeffne(token, privat) {
+    var ziel = '#' + token + (privat ? ('~' + privat) : '');
+    if (window.location.hash !== ziel) {
+      window.location.hash = ziel.slice(1) ? (token + (privat ? ('~' + privat) : '')) : '';
     }
-    ladeBereich(token);
+    ladeBereich(token, privat);
   }
 
-  function ladeBereich(token) {
+  function ladeBereich(token, privat) {
     var kopfBox = document.getElementById('beitragKopf');
     var liste = document.getElementById('postfachListe');
     if (!kopfBox || !liste) { return; }
@@ -136,14 +137,18 @@
       var nummer = 'Nr. ' + FundbueroLogik.formatNummer(beitrag.id, beitrag.created_at);
       if (beitrag.kontakt_modus === 'postfach') {
         return leseNachrichten(token).then(function (nachrichten) {
+          if (!nachrichten.length) {
+            setzeStatus(nummer + ': Noch keine Antworten — die Lupe hält die Augen offen.', false);
+            return;
+          }
           setzeStatus(
-            nachrichten.length
-              ? (nummer + ': ' + nachrichten.length + (nachrichten.length === 1 ? ' Nachricht' : ' Nachrichten') + ' — die Lupe hat was gefunden!')
-              : (nummer + ': Noch keine Antworten — die Lupe hält die Augen offen.'),
-            nachrichten.length > 0
+            nummer + ': ' + nachrichten.length + (nachrichten.length === 1 ? ' verschlüsselte Nachricht' : ' verschlüsselte Nachrichten'),
+            true
           );
-          nachrichten.forEach(function (nachricht) {
-            liste.appendChild(baueNachricht(token, nachricht));
+          return entschluessleAlle(nachrichten, privat).then(function (paare) {
+            paare.forEach(function (paar) {
+              liste.appendChild(baueNachricht(token, paar.nachricht, paar.klar, paar.fehler));
+            });
           });
         });
       }
@@ -161,7 +166,25 @@
     });
   }
 
-  // Kopfteil: welcher Beitrag ist das + „Beitrag löschen"-Knopf.
+  // Alle Nachrichten im Browser entschlüsseln (private key aus dem Link).
+  function entschluessleAlle(nachrichten, privat) {
+    if (typeof FundbueroKrypto === 'undefined' || !FundbueroKrypto.unterstuetzt()) {
+      return Promise.resolve(nachrichten.map(function (n) {
+        return { nachricht: n, klar: null, fehler: 'Dein Browser kann die Verschlüsselung nicht.' };
+      }));
+    }
+    if (!privat) {
+      return Promise.resolve(nachrichten.map(function (n) {
+        return { nachricht: n, klar: null, fehler: 'Schlüssel fehlt — öffne das Postfach über den vollständigen Link.' };
+      }));
+    }
+    return Promise.all(nachrichten.map(function (n) {
+      return FundbueroKrypto.entschluessle(privat, n.inhalt)
+        .then(function (klar) { return { nachricht: n, klar: klar, fehler: null }; })
+        .catch(function () { return { nachricht: n, klar: null, fehler: 'Konnte nicht entschlüsselt werden.' }; });
+    }));
+  }
+
   function baueBeitragKopf(token, beitrag) {
     var box = document.createElement('div');
     box.className = 'beitragKopf';
@@ -173,6 +196,17 @@
     var inhalt = String(beitrag.text == null ? '' : beitrag.text);
     text.textContent = inhalt.length > 90 ? (inhalt.slice(0, 90) + '…') : inhalt;
 
+    box.appendChild(nr);
+    box.appendChild(text);
+
+    if (beitrag.laeuft_ab_am) {
+      var ablauf = document.createElement('div');
+      ablauf.className = 'postfachMeta';
+      ablauf.textContent = 'Läuft ab am ' + FundbueroLogik.formatDatum(beitrag.laeuft_ab_am) +
+        ' — danach verschwindet der Beitrag aus Liste und Karte.';
+      box.appendChild(ablauf);
+    }
+
     var loeschen = document.createElement('button');
     loeschen.type = 'button';
     loeschen.className = 'pill pillGefahr';
@@ -180,15 +214,13 @@
     loeschen.appendChild(document.createTextNode(' Beitrag löschen'));
     loeschen.addEventListener('click', function () { loescheBeitrag(token, beitrag.id); });
 
-    box.appendChild(nr);
-    box.appendChild(text);
     box.appendChild(document.createElement('br'));
     box.appendChild(loeschen);
     return box;
   }
 
   function loescheBeitrag(token, id) {
-    if (!window.confirm('Beitrag wirklich löschen? Auch alle Antworten im Postfach verschwinden damit.')) {
+    if (!window.confirm('Beitrag wirklich löschen? Auch alle (verschlüsselten) Antworten verschwinden damit.')) {
       return;
     }
     rpc('meldung_loeschen', { p_token: token }).then(function (daten) {
@@ -208,27 +240,44 @@
     });
   }
 
-  function baueNachricht(token, nachricht) {
+  // Eine Nachricht als Karte: entschlüsselt (Name/E-Mail/Text) oder mit
+  // Hinweis, warum es nicht ging. Löschen ist immer möglich.
+  function baueNachricht(token, nachricht, klar, fehler) {
     var karte = document.createElement('div');
     karte.className = 'postfachItem';
 
     var meta = document.createElement('div');
     meta.className = 'postfachMeta';
-    var name = String(nachricht.absender_name == null ? '' : nachricht.absender_name).trim();
-    var email = String(nachricht.absender_email == null ? '' : nachricht.absender_email).trim();
-    meta.appendChild(document.createTextNode(
-      (name || 'Anonym') + ' · ' + FundbueroLogik.formatDatum(nachricht.created_at) + ' · '
-    ));
-    if (email) {
-      var link = document.createElement('a');
-      link.href = 'mailto:' + email;
-      link.textContent = email;
-      meta.appendChild(link);
+
+    if (klar) {
+      var name = String(klar.name == null ? '' : klar.name).trim();
+      var email = String(klar.email == null ? '' : klar.email).trim();
+      meta.appendChild(document.createTextNode(
+        (name || 'Anonym') + ' · ' + FundbueroLogik.formatDatum(nachricht.created_at) + ' · '
+      ));
+      if (email) {
+        var link = document.createElement('a');
+        link.href = 'mailto:' + email;
+        link.textContent = email;
+        meta.appendChild(link);
+      }
+    } else {
+      meta.appendChild(document.createTextNode(
+        FundbueroLogik.formatDatum(nachricht.created_at) + ' · '
+      ));
+      var hinweis = document.createElement('span');
+      hinweis.textContent = fehler || 'Konnte nicht entschlüsselt werden.';
+      meta.appendChild(hinweis);
     }
 
-    var text = document.createElement('div');
-    text.className = 'postfachText';
-    text.textContent = String(nachricht.nachricht == null ? '' : nachricht.nachricht);
+    karte.appendChild(meta);
+
+    if (klar) {
+      var text = document.createElement('div');
+      text.className = 'postfachText';
+      text.textContent = String(klar.nachricht == null ? '' : klar.nachricht);
+      karte.appendChild(text);
+    }
 
     var loeschen = document.createElement('button');
     loeschen.type = 'button';
@@ -237,32 +286,37 @@
     loeschen.appendChild(document.createTextNode(' Löschen'));
     loeschen.addEventListener('click', function () { loescheNachricht(token, nachricht.id); });
 
-    karte.appendChild(meta);
-    karte.appendChild(text);
     karte.appendChild(loeschen);
     return karte;
   }
 
   function loescheNachricht(token, id) {
     rpc('nachricht_loeschen', { p_token: token, p_id: id }).then(function () {
-      ladeBereich(token);
+      var teile = tokenUndSchluesselAusHash();
+      ladeBereich(token, teile.privat);
     }).catch(function () {
       setzeStatus('Löschen ging nicht — nochmal probieren.', false);
     });
   }
 
-  function tokenAusHash() {
+  function tokenUndSchluesselAusHash() {
     var hash = String(window.location.hash || '');
-    return hash.length > 1 ? hash.slice(1) : '';
+    if (hash.length < 2) { return { token: '', privat: '' }; }
+    var teile = hash.slice(1).split('~');
+    return { token: teile[0] || '', privat: teile[1] || '' };
   }
 
   function oeffneFeld() {
     var feld = document.getElementById('tokenFeld');
     var eingabe = feld ? feld.value.trim() : '';
-    // Erlaubt auch das Einfügen des kompletten Links (…#token).
-    var treffer = eingabe.match(/#([0-9a-fA-F-]{36})$/);
+    // Erlaubt das Einfügen des kompletten Links (…#token~schlüssel).
+    var treffer = eingabe.match(/#([0-9a-fA-F-]{36})(?:~([A-Za-z0-9_-]+))?\s*$/);
     var token = treffer ? treffer[1] : eingabe;
-    oeffne(token);
+    var privat = treffer && treffer[2] ? treffer[2] : '';
+    if (token) {
+      window.location.hash = token + (privat ? ('~' + privat) : '');
+    }
+    ladeBereich(token, privat);
   }
 
   function init() {
@@ -278,13 +332,12 @@
       });
     }
 
-    var token = tokenAusHash();
-    if (token) { ladeBereich(token); }
+    var teile = tokenUndSchluesselAusHash();
+    if (teile.token) { ladeBereich(teile.token, teile.privat); }
 
-    // Hash-Wechsel (z. B. aus der Liste heraus) soll nachladen.
     window.addEventListener('hashchange', function () {
-      var neu = tokenAusHash();
-      if (neu && neu !== letzterToken) { ladeBereich(neu); }
+      var neu = tokenUndSchluesselAusHash();
+      if (neu.token && neu.token !== letzterToken) { ladeBereich(neu.token, neu.privat); }
     });
   }
 

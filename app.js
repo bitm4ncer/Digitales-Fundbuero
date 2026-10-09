@@ -154,7 +154,7 @@ function versteckeStatusHinweis() {
 // (docs/supabase-setup.sql, Schritt 4): fehlen sie noch, fällt die App
 // einmalig auf die Basisspalten zurück — Kontaktzeile/Knopf bleiben dann aus.
 const FELDER_BASIS = 'id,created_at,art,text,name,lat,lng,radius_m';
-const FELDER_KONTAKT = FELDER_BASIS + ',kontakt,kontakt_modus';
+const FELDER_KONTAKT = FELDER_BASIS + ',kontakt,kontakt_modus,postfach_pubkey,laeuft_ab_am';
 
 function holeMeldungen(felder) {
   const controller = new AbortController();
@@ -211,6 +211,8 @@ function postMeldung(daten) {
     kontakt: daten.kontakt,
     kontakt_modus: daten.kontakt_modus,
     postfach_token: daten.postfach_token,
+    postfach_pubkey: daten.postfach_pubkey || null,
+    laeuft_ab_am: daten.laeuft_ab_am || null,
     lat: standort ? standort.lat : null,
     lng: standort ? standort.lng : null,
     radius_m: standort ? standort.radius_m : null
@@ -728,52 +730,66 @@ function sendeKontaktAnfrage() {
     return;
   }
 
+  // Der öffentliche Schlüssel des Posters kommt aus der Meldung; ohne ihn
+  // kann nichts verschlüsselt werden (z. B. bei Alt-Einträgen).
+  const pub = String(kontaktMeldung.postfach_pubkey || '').trim();
+  if (!pub) {
+    setzeKontaktStatus('Diese Meldung kann gerade keine verschlüsselten Nachrichten empfangen (Schlüssel fehlt).', false);
+    return;
+  }
+  if (typeof FundbueroKrypto === 'undefined' || !FundbueroKrypto.unterstuetzt()) {
+    setzeKontaktStatus('Dein Browser kann die Verschlüsselung nicht (zu alt?) — bitte einen aktuellen Browser verwenden.', false);
+    return;
+  }
+
   setzeKontaktSendeZustand(true);
-  setzeKontaktStatus('Wird verschickt …', false);
+  setzeKontaktStatus('Wird verschlüsselt und verschickt …', false);
 
-  const controller = new AbortController();
-  const timer = setTimeout(function () { controller.abort(); }, FETCH_TIMEOUT_MS);
-
-  // Direkt in die Datenbank: die RPC „nachricht_senden" macht Gate, Log,
-  // Drossel & Sperrliste serverseitig — kein Mail-Dienst, kein Dritter.
-  fetch(supabaseBasis() + '/rest/v1/rpc/nachricht_senden', {
-    method: 'POST',
-    headers: supabaseHeader({ 'Content-Type': 'application/json' }),
-    body: JSON.stringify({
-      p_meldung_id: kontaktMeldung.id,
-      p_name: name,
-      p_email: email,
-      p_nachricht: nachricht,
-      p_honig: website
-    }),
-    signal: controller.signal
-  }).then(function (antwort) {
-    return antwort.json().catch(function () { return {}; }).then(function (daten) {
-      if (!antwort.ok) {
-        const fehler = new Error('HTTP ' + antwort.status);
-        fehler.status = antwort.status;
-        fehler.daten = daten;
-        throw fehler;
+  FundbueroKrypto.verschluessle(pub, { name: name, email: email, nachricht: nachricht })
+    .then(function (inhalt) {
+      // Gespeichert wird NUR die Chiffre. Gate, Log, Drossel & Sperrliste
+      // macht die RPC serverseitig — lesen kann nur der Poster.
+      const controller = new AbortController();
+      const timer = setTimeout(function () { controller.abort(); }, FETCH_TIMEOUT_MS);
+      return fetch(supabaseBasis() + '/rest/v1/rpc/nachricht_senden', {
+        method: 'POST',
+        headers: supabaseHeader({ 'Content-Type': 'application/json' }),
+        body: JSON.stringify({
+          p_meldung_id: kontaktMeldung.id,
+          p_inhalt: inhalt,
+          p_honig: website
+        }),
+        signal: controller.signal
+      }).then(function (antwort) {
+        return antwort.json().catch(function () { return {}; }).then(function (daten) {
+          if (!antwort.ok) {
+            const fehler = new Error('HTTP ' + antwort.status);
+            fehler.status = antwort.status;
+            fehler.daten = daten;
+            throw fehler;
+          }
+          return daten;
+        });
+      }).finally(function () { clearTimeout(timer); });
+    })
+    .then(function (daten) {
+      if (daten && daten.ok === false) {
+        setzeKontaktStatus(String(daten.fehler || 'Da hat was geklemmt — nochmal probieren.'), false);
+        return;
       }
-      return daten;
+      setzeKontaktStatus('Nachricht ist verschlüsselt raus! Nur die Person mit dem Schlüssel kann sie lesen.', true);
+      setTimeout(schliesseKontaktDialog, 2600);
+    })
+    .catch(function (fehler) {
+      if (fehler && fehler.daten && fehler.daten.fehler) {
+        setzeKontaktStatus(String(fehler.daten.fehler), false);
+      } else {
+        setzeKontaktStatus(FundbueroLogik.fehlerText(statusAus(fehler)), false);
+      }
+    })
+    .finally(function () {
+      setzeKontaktSendeZustand(false);
     });
-  }).then(function (daten) {
-    if (daten && daten.ok === false) {
-      setzeKontaktStatus(String(daten.fehler || 'Da hat was geklemmt — nochmal probieren.'), false);
-      return;
-    }
-    setzeKontaktStatus('Nachricht ist raus! Die Person liest sie in ihrem Postfach und meldet sich bei dir.', true);
-    setTimeout(schliesseKontaktDialog, 2400);
-  }).catch(function (fehler) {
-    if (fehler && fehler.daten && fehler.daten.fehler) {
-      setzeKontaktStatus(String(fehler.daten.fehler), false);
-    } else {
-      setzeKontaktStatus(FundbueroLogik.fehlerText(statusAus(fehler)), false);
-    }
-  }).finally(function () {
-    clearTimeout(timer);
-    setzeKontaktSendeZustand(false);
-  });
 }
 
 function verdrahteKontakt() {
@@ -857,11 +873,14 @@ function aktualisierePostfachLink() {
 
 let aktuellePostfachUrl = '';
 
-function zeigePostfachDialog(id, token, text, modus) {
+function zeigePostfachDialog(id, token, text, modus, privat) {
   const dialog = document.getElementById('postfachDialog');
   if (!dialog || !token) { return; }
 
-  const url = new URL('postfach.html', window.location.href).href + '#' + token;
+  // Der private Schlüssel reist NUR im #-Fragment des Links — das schickt
+  // der Browser nie an einen Server.
+  const url = new URL('postfach.html', window.location.href).href + '#' + token +
+    (privat ? ('~' + privat) : '');
   aktuellePostfachUrl = url;
 
   // Titel + Hinweis je Kontaktweg (Postfach vs. offener Kontakt).
@@ -885,6 +904,7 @@ function zeigePostfachDialog(id, token, text, modus) {
 
   speicherePostfach({
     token: token,
+    privat: privat || '',
     id: id,
     nr: nrText,
     titel: String(text || '').slice(0, 60),
@@ -1127,6 +1147,8 @@ function leereFormular() {
   });
   state.composer.kontaktModus = '';
   aktualisiereKontaktFeld();
+  const ablaufWahl = document.getElementById('ablaufWahl');
+  if (ablaufWahl) { ablaufWahl.value = ''; }
   setArt('verloren');
   setzeStandortZurueck();
   aktualisiereZaehler();
@@ -1141,8 +1163,21 @@ function sendeMeldung(daten) {
     .then(function (ergebnis) {
       leereFormular();
       zeigeFormStatus('Eingetragen! Die Lupe macht sich auf die Suche. 🔍', true);
+      // Reichweitenmessung (Umami, self-hosted): Conversion-Event „meldung-gesendet" —
+      // best effort, darf den Erfolgsfluss nie stören (lokal wird nichts gesendet).
+      try {
+        if (window.umami && typeof window.umami.track === 'function') {
+          Promise.resolve(window.umami.track('meldung-gesendet', { art: daten.art })).catch(function () {});
+        }
+      } catch (fehler) { /* bewusst still: Analytics ist optional */ }
       if (daten.postfach_token) {
-        zeigePostfachDialog(ergebnis ? ergebnis.id : null, daten.postfach_token, daten.text, daten.kontakt_modus);
+        zeigePostfachDialog(
+          ergebnis ? ergebnis.id : null,
+          daten.postfach_token,
+          daten.text,
+          daten.kontakt_modus,
+          daten.privat_schluessel || ''
+        );
       }
       return ladeMeldungen();
     })
@@ -1194,15 +1229,45 @@ function verarbeiteAbsenden() {
   }
 
   // Exklusiver Weg: „offen" → Kontakt wird angezeigt; „postfach" → Antworten
-  // landen im geheimen Postfach. JEDER Beitrag bekommt einen geheimen Token —
-  // damit lässt sich der Beitrag später auch wieder löschen (ohne Konto).
-  sendeMeldung({
+  // landen verschlüsselt im geheimen Postfach. JEDER Beitrag bekommt einen
+  // geheimen Token (später löschen ohne Konto) + optionales Ablaufdatum.
+  const ablaufTage = Number(((document.getElementById('ablaufWahl') || {}).value) || 0);
+  const laeuftAb = ablaufTage > 0
+    ? new Date(Date.now() + ablaufTage * 24 * 60 * 60 * 1000).toISOString()
+    : null;
+
+  const basisDaten = {
     art: ergebnis.daten.art,
     text: ergebnis.daten.text,
     name: ergebnis.daten.name,
     kontakt: kontaktModus === 'offen' ? ergebnis.daten.kontakt : null,
     kontakt_modus: kontaktModus,
-    postfach_token: neuerPostfachToken()
+    laeuft_ab_am: laeuftAb
+  };
+
+  if (kontaktModus !== 'postfach') {
+    basisDaten.postfach_token = neuerPostfachToken();
+    basisDaten.postfach_pubkey = null;
+    sendeMeldung(basisDaten);
+    return;
+  }
+
+  // Postfach: Schlüsselpaar IM BROWSER erzeugen. Der öffentliche Schlüssel
+  // geht in die Datenbank, der private NUR in deinen geheimen Link — damit
+  // ist die Postfach-Verschlüsselung Ende-zu-Ende.
+  if (typeof FundbueroKrypto === 'undefined' || !FundbueroKrypto.unterstuetzt()) {
+    zeigeFormStatus('Dein Browser kann die Verschlüsselung nicht (zu alt?) — bitte einen aktuellen Browser verwenden.', false);
+    return;
+  }
+  zeigeFormStatus('Verschlüsselung wird vorbereitet …', false);
+  FundbueroKrypto.erzeugePaar().then(function (paar) {
+    sendeMeldung(Object.assign({}, basisDaten, {
+      postfach_token: neuerPostfachToken(),
+      postfach_pubkey: paar.publicB64,
+      privat_schluessel: paar.privatB64
+    }));
+  }).catch(function () {
+    zeigeFormStatus('Verschlüsselung konnte nicht vorbereitet werden — bitte nochmal versuchen.', false);
   });
 }
 

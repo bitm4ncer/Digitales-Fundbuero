@@ -1,5 +1,7 @@
 # Digitales Fundbüro
 
+> Schlüssel, Handy oder Herzensstück verloren? Meld es im Digitalen Fundbüro – kostenlos, anonym möglich, mit Karte. Gefundenes zurückgeben statt vergessen.
+
 **🔗 Live:** <https://bitm4ncer.github.io/Digitales-Fundbuero/>
 
 Statische Y2K-Webseite, auf der Fundbüro-Meldungen („Verloren“ / „Gefunden“) öffentlich gepostet und im Feed oder auf einer Karte angezeigt werden. Vanilla JS ohne Build-Schritt, Supabase (REST) als Datenbank, Leaflet/OpenStreetMap für die Karte.
@@ -7,7 +9,7 @@ Statische Y2K-Webseite, auf der Fundbüro-Meldungen („Verloren“ / „Gefunde
 - Feed mit Filtern `Alle · Verloren · Gefunden · Verschenken · Gesucht` und sticky Karten-Sidebar (mobil einklappbar via „🗺️ Karte anzeigen")
 - Posten-Formular mit optionalem Standort (genauer Punkt oder Bereich, Ortssuche per OpenStreetMap/Nominatim) und Bildschirmtastatur
 - Karte mit farbigen Pins und Bereichs-Kreisen (Leaflet/OSM)
-- „✉️ Antworten" auf Meldungen: **offener Kontakt im Eintrag ODER anonymes Postfach** mit geheimem Link (aktive Wahl, kein Mail-Dienst nötig)
+- „✉️ Antworten" auf Meldungen: **offener Kontakt im Eintrag ODER anonymes Postfach** mit geheimem Link (aktive Wahl) — Postfach-Nachrichten sind **Ende-zu-Ende-verschlüsselt**, der Schlüssel steckt nur im privaten Link des Posters; optionales Ablaufdatum pro Beitrag
 - Impressum, Datenschutz-Minimum und Fundpflicht-Disclaimer
 
 ## Lokal entwickeln
@@ -36,7 +38,14 @@ Hinweise:
 
 - Repository `Digitales-Fundbuero` beim Betreiber-Account anlegen und Branch `main` pushen.
 - Settings → Pages → „Deploy from a branch“: Branch `main`, Ordner `/ (root)`.
-- Die Seite wird **bewusst nicht indexiert**: `robots.txt` verbietet Crawlern den Zugriff, zusätzlich steht `<meta name="robots" content="noindex, nofollow">` in `index.html`.
+- Die öffentlichen Seiten sind **indexierbar** (`noindex`-Meta entfernt); `postfach.html` bleibt per `noindex` bewusst ausgeschlossen. `sitemap.xml` listet index/impressum/datenschutz — bitte einmalig in der Google Search Console einreichen. Hinweis: Bei GitHub-Projektseiten wird `robots.txt` nicht vom Host-Root ausgeliefert und daher von Suchmaschinen nicht gelesen — der eigentliche Hebel sind die Meta-Tags; die Datei bleibt der Vollständigkeit halber im Repo.
+
+## Analytics (Umami, self-hosted)
+
+- Self-hosted Umami unter `https://stats.bitmancer.net` · Website-ID `74c865dc-4cc3-4771-bb3f-c7bf7cf87c2a`
+- Snippet liegt im `<head>` aller 4 HTML-Seiten: `defer` + `data-domains="bitm4ncer.github.io"` (lokal/Staging wird nie gezählt) + `data-do-not-track="true"` + `data-exclude-hash="true"` (der Postfach-Token im `#hash` bleibt aus der Messung draußen).
+- Custom Event `meldung-gesendet` in `app.js` (nach erfolgreichem Eintrag, inkl. Art der Meldung) → Conversions im Dashboard sichtbar.
+- Kurzfassung für Besucher: `datenschutz.html` → „Cookies und Reichweitenmessung".
 
 ## Tests & Checks
 

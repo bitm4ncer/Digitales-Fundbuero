@@ -3,13 +3,22 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="robots" content="noindex, nofollow">
-  <title>Digitales Fundbüro — Verlorenes &amp; Gefundenes</title>
-  <meta name="description" content="Das Digitale Fundbüro — Verlorenes melden, Gefundenes zurückgeben. Mit Karte, Tastatur und ganz viel 2003.">
+  <title>Digitales Fundbüro – Verlorenes melden, Gefundenes zurückgeben</title>
+  <meta name="description" content="Schlüssel, Handy oder Herzensstück verloren? Meld es im Digitalen Fundbüro – kostenlos, anonym möglich, mit Karte. Gefundenes zurückgeben statt vergessen.">
+  <link rel="canonical" href="https://bitm4ncer.github.io/Digitales-Fundbuero/">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="Digitales Fundbüro">
+  <meta property="og:title" content="Digitales Fundbüro – Verlorenes melden, Gefundenes zurückgeben">
+  <meta property="og:description" content="Schlüssel, Handy oder Herzensstück verloren? Meld es im Digitalen Fundbüro – kostenlos, anonym möglich, mit Karte. Gefundenes zurückgeben statt vergessen.">
+  <meta property="og:url" content="https://bitm4ncer.github.io/Digitales-Fundbuero/">
+  <meta property="og:locale" content="de_DE">
+  <meta name="twitter:card" content="summary">
   <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
   <!-- Asset-Version bei jedem CSS/JS-Deploy hochzählen (gegen Cache-Mixe) -->
-  <link rel="stylesheet" href="style.css?v=7">
+  <link rel="stylesheet" href="style.css?v=8">
+  <!-- Umami (self-hosted, cookieless): nur die Live-Domain zählen, DNT wird respektiert -->
+  <script defer src="https://stats.bitmancer.net/script.js" data-website-id="74c865dc-4cc3-4771-bb3f-c7bf7cf87c2a" data-domains="bitm4ncer.github.io" data-do-not-track="true" data-exclude-hash="true"></script>
 </head>
 <body>
   <div class="seite">
@@ -77,6 +86,16 @@
             <div id="kontaktFeldBlock" hidden>
               <input id="eingabeKontakt" class="composerFeld" type="text" maxlength="200" placeholder="Dein Kontakt — z. B. E-Mail, Telefon oder @instagram" aria-label="Dein Kontakt (wird im Eintrag angezeigt)">
             </div>
+          </div>
+
+          <div class="ablaufZeile">
+            <label for="ablaufWahl"><span class="ico" data-ico="uhr"></span> Gültig:</label>
+            <select id="ablaufWahl" class="composerFeld ablaufFeld" aria-label="Wie lange soll der Beitrag sichtbar bleiben?">
+              <option value="">bleibt für immer (bis du löschst)</option>
+              <option value="30">30 Tage</option>
+              <option value="90">90 Tage</option>
+              <option value="180">180 Tage</option>
+            </select>
           </div>
 
           <textarea id="eingabeText" class="composerFeld composerText" maxlength="500" placeholder="Gegenstand und Fundort beschreiben …" aria-label="Gegenstand und Fundort"></textarea>
@@ -160,7 +179,7 @@
   <dialog id="kontaktDialog" class="kontaktDialog" aria-label="Antwort auf eine Meldung">
     <form id="kontaktFormular" novalidate>
       <h3 class="kontaktTitel"><span class="ico" data-ico="brief" data-ico-groesse="18"></span> <span id="kontaktTitel">Antwort auf eine Meldung</span></h3>
-      <p class="kontaktHinweis">Deine Angaben gehen nur an die Person, die die Meldung eingetragen hat — nie an andere Besucher.</p>
+      <p class="kontaktHinweis">Deine Angaben gehen nur an die Person, die die Meldung eingetragen hat — nie an andere Besucher. <span class="ico" data-ico="schloss"></span> <b>Ende-zu-Ende-verschlüsselt</b> — nur der Postfach-Schlüssel öffnet sie.</p>
       <input id="kontaktName" class="composerFeld kontaktFeld" type="text" maxlength="60" placeholder="Dein Name (freiwillig)" aria-label="Dein Name (freiwillig)">
       <input id="kontaktEmail" class="composerFeld kontaktFeld" type="email" maxlength="200" placeholder="Deine E-Mail (für die Antwort)" aria-label="Deine E-Mail-Adresse">
       <textarea id="kontaktNachricht" class="composerFeld kontaktFeld" maxlength="1000" placeholder="Deine Nachricht — z. B. wo du es gefunden hast oder wie man dich erreicht …" aria-label="Deine Nachricht"></textarea>
@@ -193,10 +212,11 @@
     </div>
   </dialog>
 
-  <script src="config.js?v=7"></script>
-  <script src="logic.js?v=7"></script>
-  <script src="icons.js?v=7"></script>
+  <script src="config.js?v=8"></script>
+  <script src="logic.js?v=8"></script>
+  <script src="icons.js?v=8"></script>
+  <script src="krypto.js?v=8"></script>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <script src="app.js?v=7"></script>
+  <script src="app.js?v=8"></script>
 </body>
 </html>

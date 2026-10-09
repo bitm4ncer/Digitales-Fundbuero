@@ -1,2 +1,4 @@
 User-agent: *
-Disallow: /
+Allow: /
+
+Sitemap: https://bitm4ncer.github.io/Digitales-Fundbuero/sitemap.xml

@@ -38,3 +38,10 @@ Stand: 2026-10-09 · vor jedem „fertig" einmal durchgehen (Desktop 1280px+, zu
 - [ ] Lange Texte brechen um, nichts läuft über (kein horizontaler Scrollbalken)
 - [ ] Sehr kleine Fenster (Mobil): Grundfunktion ok, Tastatur scrollt
 - [ ] Nachtrag: Impressum/Datenschutz verlinkt und befüllt (⚠️ vor öffentlichem Launch)
+
+## SEO & Analytics
+- [ ] `sitemap.xml` lädt und listet index/impressum/datenschutz (ohne postfach); `robots.txt` liegt im Repo (Hinweis: wird bei Projektseiten nicht als Host-Root gelesen — Meta-Tags sind der Hebel)
+- [ ] index/impressum/datenschutz ohne `noindex`; `postfach.html` weiterhin mit `noindex`
+- [ ] Live: Umami-Dashboard zeigt Pageview; nach einem echten Eintrag erscheint Event `meldung-gesendet`
+- [ ] Live: `postfach.html#<token>` aufrufen → Dashboard zeigt nur `postfach.html` (kein `#token` — data-exclude-hash)
+- [ ] Lokal (localhost): **kein** Analytics-Request (data-domains greift)

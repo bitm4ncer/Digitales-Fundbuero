@@ -93,6 +93,19 @@
       '<path d="M3 6.2 9 4l6 2.2L21 4v13.8L15 20l-6-2.2L3 20z" fill="#e8f1ff" stroke="#1d5eb8" stroke-width="2" stroke-linejoin="round"/>' +
       '<path d="M9 4v13.8M15 6.2V20" stroke="#1d5eb8" stroke-width="1.5"/>' +
       '<circle cx="6.2" cy="10" r="1" fill="#e0342a"/><circle cx="17.8" cy="12.5" r="1" fill="#1fa53c"/>' +
+      '</svg>',
+
+    uhr:
+      '<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">' +
+      '<circle cx="12" cy="12" r="9" fill="#e8f1ff" stroke="#1d5eb8" stroke-width="2.2"/>' +
+      '<path d="M12 7v5.2l3.4 2" stroke="#e0342a" stroke-width="2.2" fill="none" stroke-linecap="round"/>' +
+      '</svg>',
+
+    schloss:
+      '<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">' +
+      '<rect x="4.5" y="10" width="15" height="10.5" rx="2" fill="#fff6d8" stroke="#e07a00" stroke-width="2.2"/>' +
+      '<path d="M8 10V7.5a4 4 0 0 1 8 0V10" fill="none" stroke="#e07a00" stroke-width="2.2"/>' +
+      '<circle cx="12" cy="14.5" r="1.7" fill="#e07a00"/><path d="M12 15.8v2.2" stroke="#e07a00" stroke-width="1.8" stroke-linecap="round"/>' +
       '</svg>'
   };
 

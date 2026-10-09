@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Öffentliche Seiten des Digitalen Fundbüros (index/impressum/datenschutz).
+     postfach.html fehlt hier bewusst und bleibt per noindex ausgeschlossen. -->
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url>
+    <loc>https://bitm4ncer.github.io/Digitales-Fundbuero/</loc>
+  </url>
+  <url>
+    <loc>https://bitm4ncer.github.io/Digitales-Fundbuero/impressum.html</loc>
+  </url>
+  <url>
+    <loc>https://bitm4ncer.github.io/Digitales-Fundbuero/datenschutz.html</loc>
+  </url>
+</urlset>

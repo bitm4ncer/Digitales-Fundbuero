@@ -7,7 +7,10 @@
   <title>Mein Postfach — Digitales Fundbüro</title>
   <meta name="description" content="Dein geheimes Postfach im Digitalen Fundbüro: Antworten auf deine Meldungen lesen und löschen.">
   <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="style.css?v=7">
+  <link rel="stylesheet" href="style.css?v=8">
+  <!-- Umami (self-hosted, cookieless): nur die Live-Domain zählen, DNT wird respektiert.
+       data-exclude-hash hält den Postfach-Token (#hash) aus der Messung. -->
+  <script defer src="https://stats.bitmancer.net/script.js" data-website-id="74c865dc-4cc3-4771-bb3f-c7bf7cf87c2a" data-domains="bitm4ncer.github.io" data-do-not-track="true" data-exclude-hash="true"></script>
 </head>
 <body>
   <div class="seite">
@@ -30,9 +33,10 @@
         <h1><span class="ico" data-ico="schluessel" data-ico-groesse="22"></span> Mein Bereich</h1>
 
         <p>
-          Hier verwaltest du deine Beiträge: Antworten lesen (beim anonymen Postfach) und Beiträge
-          löschen — alles nur mit deinem geheimen Link, ganz ohne Konto. Füge den Code (oder den
-          kompletten Link) ein, falls du ihn gerade nicht als Lesezeichen hast.
+          Hier verwaltest du deine Beiträge: verschlüsselte Antworten lesen (beim anonymen Postfach) und
+          Beiträge löschen — alles nur mit deinem geheimen Link, ganz ohne Konto. Antworten im Postfach
+          sind <b>Ende-zu-Ende-verschlüsselt</b>: Den Schlüssel dafür hat nur dein Link, nicht der Server.
+          Füge den Code (oder den kompletten Link) ein, falls du ihn gerade nicht als Lesezeichen hast.
         </p>
 
         <div class="postfachZugang">
@@ -57,9 +61,10 @@
 
   </div>
 
-  <script src="config.js?v=7"></script>
-  <script src="logic.js?v=7"></script>
-  <script src="icons.js?v=7"></script>
-  <script src="postfach.js?v=7"></script>
+  <script src="config.js?v=8"></script>
+  <script src="logic.js?v=8"></script>
+  <script src="icons.js?v=8"></script>
+  <script src="krypto.js?v=8"></script>
+  <script src="postfach.js?v=8"></script>
 </body>
 </html>
