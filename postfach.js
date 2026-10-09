@@ -8,6 +8,7 @@
 
   var POSTFACH_KEY = 'fundbueroPostfaecher';
   var letzterToken = '';
+  var letzterSchluessel = '';
 
   function konfiguration() {
     return (typeof window !== 'undefined' && window.FUNDBUERO_CONFIG) ? window.FUNDBUERO_CONFIG : {};
@@ -124,6 +125,7 @@
       return;
     }
     letzterToken = token;
+    letzterSchluessel = privat || '';
     setzeStatus('Wird geöffnet …', false);
 
     rpc('beitrag_info', { p_token: token }).then(function (daten) {
@@ -344,7 +346,9 @@
 
     window.addEventListener('hashchange', function () {
       var neu = tokenUndSchluesselAusHash();
-      if (neu.token && neu.token !== letzterToken) { ladeBereich(neu.token, neu.privat); }
+      if (neu.token && (neu.token !== letzterToken || neu.privat !== letzterSchluessel)) {
+        ladeBereich(neu.token, neu.privat);
+      }
     });
   }
 
