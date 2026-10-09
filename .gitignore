@@ -8,3 +8,6 @@ Desktop.ini
 
 # Editor
 *.swp
+
+# Worktrees (isoliertes Feature-Arbeiten)
+.worktrees/
