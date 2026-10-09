@@ -5,7 +5,7 @@
 create table if not exists meldungen (
   id         bigint generated always as identity primary key,
   created_at timestamptz not null default now(),
-  art        text not null check (art in ('verloren','gefunden','verschenken')),
+  art        text not null check (art in ('verloren','gefunden','verschenken','gesucht')),
   text       text not null check (char_length(text) between 3 and 500),
   name       text          check (char_length(name) <= 60),
   kontakt    text          check (char_length(kontakt) <= 200),

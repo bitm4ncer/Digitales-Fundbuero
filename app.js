@@ -60,16 +60,18 @@ const RADIUS_START = 300; // Standort-Regler (Task 7): 50–1000 m, Start 300
 const PIN_FARBEN = {
   verloren: { hell: '#ff8a80', dunkel: '#e0342a', buchstabe: 'V' },
   gefunden: { hell: '#7ee08a', dunkel: '#1fa53c', buchstabe: 'G' },
-  verschenken: { hell: '#ffb85e', dunkel: '#e07a00', buchstabe: 'S' }
+  verschenken: { hell: '#ffb85e', dunkel: '#e07a00', buchstabe: 'S' },
+  gesucht: { hell: '#c9a2ff', dunkel: '#7a3fd1', buchstabe: '?' }
 };
 
 // Badge-Texte und Composer-Überschrift je Kategorie (die Überschrift passt
-// sich der gewählten Kategorie an: verloren / gefunden / verschenken).
-const ART_LABEL = { verloren: 'VERLOREN', gefunden: 'GEFUNDEN', verschenken: 'VERSCHENKEN' };
+// sich der gewählten Kategorie an: verloren / gefunden / verschenken / gesucht).
+const ART_LABEL = { verloren: 'VERLOREN', gefunden: 'GEFUNDEN', verschenken: 'VERSCHENKEN', gesucht: 'GESUCHT' };
 const TITEL_TEXT = {
   verloren: 'Was hast DU verloren?',
   gefunden: 'Was hast DU gefunden?',
-  verschenken: 'Was willst DU verschenken?'
+  verschenken: 'Was willst DU verschenken?',
+  gesucht: 'Was suchst DU?'
 };
 
 // Tastatur-Reihen exakt wie im Mockup (brand-jamba-nummer.html):

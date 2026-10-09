@@ -9,7 +9,7 @@
   <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
   <!-- Asset-Version bei jedem CSS/JS-Deploy hochzählen (gegen Cache-Mixe) -->
-  <link rel="stylesheet" href="style.css?v=4">
+  <link rel="stylesheet" href="style.css?v=5">
 </head>
 <body>
   <div class="seite">
@@ -40,6 +40,7 @@
           <button type="button" class="pill" data-filter="verloren">Verloren (0)</button>
           <button type="button" class="pill" data-filter="gefunden">Gefunden (0)</button>
           <button type="button" class="pill" data-filter="verschenken">Verschenken (0)</button>
+          <button type="button" class="pill" data-filter="gesucht">Gesucht (0)</button>
           <button type="button" id="aktualisieren" class="pill pillAktion">🔄 Aktualisieren</button>
         </div>
 
@@ -58,6 +59,7 @@
             <button type="button" class="artPill" data-art="verloren" aria-pressed="true">● VERLOREN</button>
             <button type="button" class="artPill" data-art="gefunden" aria-pressed="false">○ GEFUNDEN</button>
             <button type="button" class="artPill" data-art="verschenken" aria-pressed="false">○ VERSCHENKEN</button>
+            <button type="button" class="artPill" data-art="gesucht" aria-pressed="false">○ GESUCHT</button>
           </div>
 
           <div class="composerZeile">
@@ -197,9 +199,9 @@
     </div>
   </dialog>
 
-  <script src="config.js?v=4"></script>
-  <script src="logic.js?v=4"></script>
+  <script src="config.js?v=5"></script>
+  <script src="logic.js?v=5"></script>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <script src="app.js?v=4"></script>
+  <script src="app.js?v=5"></script>
 </body>
 </html>

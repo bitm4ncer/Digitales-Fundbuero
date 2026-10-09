@@ -25,6 +25,7 @@ test('validiereMeldung: trims, prüft Pflichtfeld und Grenzen', () => {
   assert.equal(ok.daten.kontakt, null);
   assert.equal(L.validiereMeldung({ art: 'verloren', text: 'ab' }).ok, false);
   assert.equal(L.validiereMeldung({ art: 'verschenken', text: 'Hallo Welt' }).ok, true);
+  assert.equal(L.validiereMeldung({ art: 'gesucht', text: 'Hallo Welt' }).ok, true);
   assert.equal(L.validiereMeldung({ art: 'weg', text: 'Hallo Welt' }).ok, false);
   assert.equal(L.validiereMeldung({ art: 'verloren', text: 'Hallo', name: 'x'.repeat(61) }).ok, false);
   assert.equal(L.validiereMeldung({ art: 'verloren', text: 'Hallo', kontakt: 'x'.repeat(201) }).ok, false);
