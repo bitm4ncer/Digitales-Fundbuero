@@ -23,7 +23,7 @@
 // filter: 'alle' | 'verloren' | 'gefunden' | 'verschenken'
 // composer: Eingaben des Formulars. standort (Task 7) ist null (kein
 // Standort) oder { lat, lng, radius_m }; radius_m null = genauer Punkt.
-const state = { meldungen: [], filter: 'alle', composer: { art: 'verloren', standort: null } };
+const state = { meldungen: [], filter: 'alle', composer: { art: 'verloren', standort: null, kontaktModus: '' } };
 
 // sendet: Reentrancy-Guard — während eines laufenden POST ist der Absende-Button gesperrt.
 // karte/pinEbene/kreisEbene: Leaflet-Instanz der Sidebar (Task 6); pinAnzahl speist
@@ -303,7 +303,8 @@ function baueKarte(meldung, vorlage) {
     const offen = String(meldung.kontakt == null ? '' : meldung.kontakt).trim();
     if (kontaktZeile && offen) {
       kontaktZeile.hidden = false;
-      kontaktZeile.appendChild(document.createTextNode('📢 Kontakt: '));
+      if (typeof FundbueroIcons !== 'undefined') { kontaktZeile.appendChild(FundbueroIcons.baue('megafon', 13)); }
+      kontaktZeile.appendChild(document.createTextNode(' Kontakt: '));
       if (FundbueroLogik.istGueltigeEmail(offen)) {
         const link = document.createElement('a');
         link.href = 'mailto:' + offen;
@@ -321,6 +322,9 @@ function baueKarte(meldung, vorlage) {
   if (istNeu(meldung.created_at)) {
     karte.querySelector('.neuChip').hidden = false;
   }
+
+  // Icons im geklonten Template füllen (platzierte data-ico-Spans).
+  if (typeof FundbueroIcons !== 'undefined') { FundbueroIcons.ersetzeIcons(karte); }
 
   return karte;
 }
@@ -416,7 +420,10 @@ function aktualisiereKarteToggle() {
   const zu = !!(box && box.classList.contains('zu'));
 
   if (button) {
-    button.textContent = zu ? '🗺️ Karte anzeigen (' + pinAnzahl + ')' : '🗺️ Karte verbergen';
+    const text = document.getElementById('mapToggleText');
+    if (text) {
+      text.textContent = zu ? ('Karte anzeigen (' + pinAnzahl + ')') : 'Karte verbergen';
+    }
     button.setAttribute('aria-expanded', zu ? 'false' : 'true');
   }
   if (zaehler) {
@@ -638,7 +645,7 @@ function sucheOrt() {
     karteMini.setView([lat, lng], 16);
     setzeStandort(lat, lng);
     const kurz = String(treffer[0].display_name || '').split(',').slice(0, 2).join(',').trim();
-    setzeStatus(kurz ? ('📍 ' + kurz + ' — Pin gesetzt, gern feinjustieren!') : '📍 Pin gesetzt — gern feinjustieren!');
+    setzeStatus(kurz ? (kurz + ' — Pin gesetzt, gern feinjustieren!') : 'Pin gesetzt — gern feinjustieren!');
   }).catch(function () {
     setzeStatus('Ortssuche gerade nicht erreichbar — klick einfach in die Karte.');
   }).finally(function () {
@@ -674,7 +681,7 @@ function oeffneKontaktDialog(meldung) {
 
   const titel = document.getElementById('kontaktTitel');
   if (titel) {
-    titel.textContent = '✉️ Antwort auf Nr. ' +
+    titel.textContent = 'Antwort auf Nr. ' +
       FundbueroLogik.formatNummer(meldung.id, meldung.created_at);
   }
   ['kontaktName', 'kontaktEmail', 'kontaktNachricht', 'kontaktWebsite'].forEach(function (id) {
@@ -755,7 +762,7 @@ function sendeKontaktAnfrage() {
       setzeKontaktStatus(String(daten.fehler || 'Da hat was geklemmt — nochmal probieren.'), false);
       return;
     }
-    setzeKontaktStatus('Nachricht ist raus! Die Person liest sie in ihrem Postfach und meldet sich bei dir. 📬', true);
+    setzeKontaktStatus('Nachricht ist raus! Die Person liest sie in ihrem Postfach und meldet sich bei dir.', true);
     setTimeout(schliesseKontaktDialog, 2400);
   }).catch(function (fehler) {
     if (fehler && fehler.daten && fehler.daten.fehler) {
@@ -789,10 +796,15 @@ function verdrahteKontakt() {
     dialog.addEventListener('close', function () { kontaktMeldung = null; });
   }
 
-  // Aktive Kontaktweg-Wahl: Kontaktfeld nur beim offenen Weg einblenden.
+  // Kontaktweg: smarter Pill-Switch (aktive Wahl, exklusiv).
   const wahl = document.getElementById('kontaktWahl');
   if (wahl) {
-    wahl.addEventListener('change', aktualisiereKontaktFeld);
+    wahl.addEventListener('click', function (ereignis) {
+      const pill = ereignis.target && ereignis.target.closest
+        ? ereignis.target.closest('.kontaktPill[data-kontakt]')
+        : null;
+      if (pill) { setzeKontaktModus(pill.dataset.kontakt); }
+    });
   }
   aktualisiereKontaktFeld();
 }
@@ -835,22 +847,32 @@ function speicherePostfach(eintrag) {
   aktualisierePostfachLink();
 }
 
-// Footer-Link: „📬 Mein Postfach" bzw. „📬 Meine Postfächer (n)".
+// Footer-Link: „Meine Beiträge" bzw. „Meine Beiträge (n)".
 function aktualisierePostfachLink() {
   const link = document.getElementById('postfachLink');
   if (!link) { return; }
   const anzahl = lesePostfaecher().length;
-  link.textContent = anzahl > 0 ? ('📬 Meine Postfächer (' + anzahl + ')') : '📬 Mein Postfach';
+  link.textContent = anzahl > 0 ? ('Meine Beiträge (' + anzahl + ')') : 'Meine Beiträge';
 }
 
 let aktuellePostfachUrl = '';
 
-function zeigePostfachDialog(id, token, text) {
+function zeigePostfachDialog(id, token, text, modus) {
   const dialog = document.getElementById('postfachDialog');
   if (!dialog || !token) { return; }
 
   const url = new URL('postfach.html', window.location.href).href + '#' + token;
   aktuellePostfachUrl = url;
+
+  // Titel + Hinweis je Kontaktweg (Postfach vs. offener Kontakt).
+  const titelEl = document.getElementById('postfachTitelText');
+  if (titelEl) {
+    titelEl.textContent = modus === 'offen' ? 'Dein Beitrag ist online!' : 'Dein Postfach ist bereit!';
+  }
+  const hinweisA = document.getElementById('postfachHinweisA');
+  const hinweisB = document.getElementById('postfachHinweisB');
+  if (hinweisA) { hinweisA.textContent = modus === 'offen' ? 'Dein Beitrag' : 'Antworten auf'; }
+  if (hinweisB) { hinweisB.textContent = modus === 'offen' ? 'steht im schwarzen Brett.' : 'landen NUR hier.'; }
 
   const nrText = id != null
     ? 'Nr. ' + FundbueroLogik.formatNummer(id, new Date().toISOString())
@@ -866,7 +888,8 @@ function zeigePostfachDialog(id, token, text) {
     id: id,
     nr: nrText,
     titel: String(text || '').slice(0, 60),
-    datum: new Date().toISOString()
+    datum: new Date().toISOString(),
+    modus: modus || ''
   });
 
   if (typeof dialog.showModal === 'function') { dialog.showModal(); }
@@ -884,7 +907,7 @@ function kopierePostfachLink() {
   if (!aktuellePostfachUrl) { return; }
   if (navigator.clipboard && navigator.clipboard.writeText) {
     navigator.clipboard.writeText(aktuellePostfachUrl)
-      .then(function () { setzePostfachStatus('Link kopiert! Speicher ihn gut. 📋', true); })
+      .then(function () { setzePostfachStatus('Link kopiert! Speicher ihn gut.', true); })
       .catch(function () { setzePostfachStatus('Kopieren ging nicht — bitte markier den Link von Hand.', false); });
   } else {
     setzePostfachStatus('Kopieren geht hier nicht — bitte markier den Link von Hand.', false);
@@ -902,11 +925,34 @@ function mailePostfachLink() {
   window.location.href = 'mailto:?subject=' + betreff + '&body=' + rumpf;
 }
 
-// Kontaktweg-Wahl: Kontaktfeld nur beim offenen Weg einblenden.
+// Kontaktweg: smarter Pill-Switch — aktive, exklusive Wahl.
+function setzeKontaktModus(modus) {
+  if (modus !== 'offen' && modus !== 'postfach') { return; }
+  state.composer.kontaktModus = modus;
+  aktualisiereKontaktFeld();
+}
+
+// UI an den gewählten Kontaktweg anpassen: Pills, Info-Zeile, Kontaktfeld.
 function aktualisiereKontaktFeld() {
-  const gewaehlt = document.querySelector('#kontaktWahl input[name="kontaktModus"]:checked');
+  const modus = state.composer.kontaktModus || '';
+
+  document.querySelectorAll('#kontaktWahl .kontaktPill[data-kontakt]').forEach(function (pill) {
+    pill.setAttribute('aria-pressed', pill.dataset.kontakt === modus ? 'true' : 'false');
+  });
+
+  const info = document.getElementById('kontaktInfo');
+  if (info) {
+    if (modus === 'offen') {
+      info.textContent = 'Offener Kontakt: Deine Angabe steht im Eintrag — Antworten kommen direkt bei dir an (z. B. per E-Mail).';
+    } else if (modus === 'postfach') {
+      info.textContent = 'Anonymes Postfach: Keine Angaben nötig — Antworten landen NUR in deinem geheimen Postfach (Link bekommst du nach dem Eintragen).';
+    } else {
+      info.textContent = 'Wähle einen Weg — du entscheidest, wie man dich erreicht.';
+    }
+  }
+
   const block = document.getElementById('kontaktFeldBlock');
-  if (block) { block.hidden = !(gewaehlt && gewaehlt.value === 'offen'); }
+  if (block) { block.hidden = modus !== 'offen'; }
 }
 
 function verdrahtePostfach() {
@@ -1079,6 +1125,7 @@ function leereFormular() {
   document.querySelectorAll('#kontaktWahl input[name="kontaktModus"]').forEach(function (radio) {
     radio.checked = false;
   });
+  state.composer.kontaktModus = '';
   aktualisiereKontaktFeld();
   setArt('verloren');
   setzeStandortZurueck();
@@ -1094,8 +1141,8 @@ function sendeMeldung(daten) {
     .then(function (ergebnis) {
       leereFormular();
       zeigeFormStatus('Eingetragen! Die Lupe macht sich auf die Suche. 🔍', true);
-      if (daten.kontakt_modus === 'postfach' && daten.postfach_token) {
-        zeigePostfachDialog(ergebnis ? ergebnis.id : null, daten.postfach_token, daten.text);
+      if (daten.postfach_token) {
+        zeigePostfachDialog(ergebnis ? ergebnis.id : null, daten.postfach_token, daten.text, daten.kontakt_modus);
       }
       return ladeMeldungen();
     })
@@ -1129,8 +1176,7 @@ function verarbeiteAbsenden() {
   }
 
   // Kontaktweg ist eine aktive Entscheidung — ohne Wahl geht nichts raus.
-  const gewaehlt = document.querySelector('#kontaktWahl input[name="kontaktModus"]:checked');
-  const kontaktModus = gewaehlt ? gewaehlt.value : '';
+  const kontaktModus = state.composer.kontaktModus || '';
   if (!kontaktModus) {
     zeigeFormStatus('Bitte wähle erst, wie man dich erreichen soll: „Offener Kontakt" oder „Anonymes Postfach".', false);
     return;
@@ -1147,15 +1193,16 @@ function verarbeiteAbsenden() {
     return;
   }
 
-  // Exklusiver Weg: „offen" → Kontakt wird angezeigt; „postfach" → Token fürs
-  // geheime Postfach (Kontakt wird gar nicht erst mitgeschickt).
+  // Exklusiver Weg: „offen" → Kontakt wird angezeigt; „postfach" → Antworten
+  // landen im geheimen Postfach. JEDER Beitrag bekommt einen geheimen Token —
+  // damit lässt sich der Beitrag später auch wieder löschen (ohne Konto).
   sendeMeldung({
     art: ergebnis.daten.art,
     text: ergebnis.daten.text,
     name: ergebnis.daten.name,
     kontakt: kontaktModus === 'offen' ? ergebnis.daten.kontakt : null,
     kontakt_modus: kontaktModus,
-    postfach_token: kontaktModus === 'postfach' ? neuerPostfachToken() : null
+    postfach_token: neuerPostfachToken()
   });
 }
 

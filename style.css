@@ -43,6 +43,8 @@ body {
 
 button, input, textarea { font-family: inherit; }
 
+.ico { display: inline-block; line-height: 1; vertical-align: -3px; }
+
 button:focus-visible, input:focus-visible, textarea:focus-visible {
   outline: 2px solid var(--aktion);
   outline-offset: 1px;
@@ -88,9 +90,9 @@ button:focus-visible, input:focus-visible, textarea:focus-visible {
 .wortmarke { text-align: center; }
 
 .wortmarkeKlein {
-  font-size: 8px;
-  letter-spacing: 5px;
-  padding-left: 5px; /* gleicht den Leerraum nach dem letzten Buchstaben aus */
+  font-size: 12px;
+  letter-spacing: 6px;
+  padding-left: 6px; /* gleicht den Leerraum nach dem letzten Buchstaben aus */
   color: #bcd9ff;
   font-weight: bold;
 }
@@ -289,7 +291,7 @@ button:focus-visible, input:focus-visible, textarea:focus-visible {
 .composerTitel {
   margin: 0 0 6px;
   font-family: var(--wortmarke);
-  font-size: 15px;
+  font-size: 22px;
   color: var(--blau-text);
   text-align: center;
 }
@@ -614,31 +616,13 @@ button:focus-visible, input:focus-visible, textarea:focus-visible {
   margin-bottom: 4px;
 }
 
-.kontaktOption {
-  display: flex;
-  gap: 8px;
-  align-items: flex-start;
-  background: #fff;
-  border: 2px solid var(--blau-rand);
-  border-radius: 10px;
-  padding: 7px 10px;
-  margin-bottom: 6px;
-  cursor: pointer;
-}
+.kontaktPills { margin-bottom: 4px; }
 
-.kontaktOption input { margin-top: 2px; flex-shrink: 0; }
-
-.kontaktOptionText {
+.kontaktInfo {
   font-size: 11px;
   color: var(--blau-meta);
-  line-height: 1.45;
-}
-
-.kontaktOptionText b { color: var(--blau-text); }
-
-.kontaktOption:has(input:checked) {
-  border-color: var(--aktion);
-  background: linear-gradient(#f2f8ff, #e8f1ff);
+  margin-bottom: 6px;
+  min-height: 14px;
 }
 
 #kontaktFeldBlock { margin-bottom: 6px; }
@@ -702,6 +686,24 @@ button:focus-visible, input:focus-visible, textarea:focus-visible {
 }
 
 .postfachItem .pill { margin-top: 6px; }
+
+/* Beitrags-Verwaltung (Mein Bereich) */
+.beitragKopf {
+  background: #fff;
+  border: 1px solid var(--blau-rand);
+  border-radius: 10px;
+  padding: 8px 10px;
+  margin-bottom: 10px;
+  color: var(--blau-text);
+}
+
+.beitragKopf .pill { margin-top: 6px; }
+
+.pillGefahr {
+  color: #8f2318;
+  background: linear-gradient(#ffe3e0, #ffb8b0);
+  border: 1px solid #d98f86;
+}
 
 /* ---------- Absenden + Status ---------- */
 

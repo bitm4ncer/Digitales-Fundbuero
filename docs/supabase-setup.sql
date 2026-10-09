@@ -169,3 +169,39 @@ begin
 end;
 $$;
 
+-- Beitrags-Verwaltung per geheimem Token (jeder Beitrag bekommt einen):
+-- „Mein Bereich" zeigt damit den eigenen Beitrag an und kann ihn löschen —
+-- ohne Konto. Rückgabe: eine Zeile pro Token (oder nichts).
+create or replace function beitrag_info(p_token uuid)
+returns table (
+  id bigint,
+  created_at timestamptz,
+  art text,
+  text text,
+  kontakt_modus text
+)
+language sql security definer set search_path = public
+as $$
+  select m.id, m.created_at, m.art, m.text, m.kontakt_modus
+  from meldungen m
+  where m.postfach_token = p_token;
+$$;
+
+-- Beitrag löschen (nur mit Token); Antworten hängen per ON DELETE CASCADE dran.
+create or replace function meldung_loeschen(p_token uuid)
+returns jsonb
+language plpgsql security definer set search_path = public
+as $$
+declare
+  v_id bigint;
+begin
+  delete from meldungen m
+  where m.postfach_token = p_token
+  returning m.id into v_id;
+  if v_id is null then
+    return jsonb_build_object('ok', false, 'fehler', 'Nichts gelöscht — ist der Link komplett?');
+  end if;
+  return jsonb_build_object('ok', true, 'id', v_id);
+end;
+$$;
+

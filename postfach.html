@@ -7,7 +7,7 @@
   <title>Mein Postfach — Digitales Fundbüro</title>
   <meta name="description" content="Dein geheimes Postfach im Digitalen Fundbüro: Antworten auf deine Meldungen lesen und löschen.">
   <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="style.css?v=5">
+  <link rel="stylesheet" href="style.css?v=6">
 </head>
 <body>
   <div class="seite">
@@ -27,11 +27,12 @@
 
     <main class="rechtMain">
       <article class="rechtInhalt">
-        <h1>📬 Mein Postfach</h1>
+        <h1><span class="ico" data-ico="schluessel" data-ico-groesse="22"></span> Mein Bereich</h1>
 
         <p>
-          Hier liest du Antworten auf deine Meldungen — nur mit deinem geheimen Postfach-Link.
-          Füge den Code (oder den kompletten Link) ein, falls du ihn gerade nicht als Lesezeichen hast.
+          Hier verwaltest du deine Beiträge: Antworten lesen (beim anonymen Postfach) und Beiträge
+          löschen — alles nur mit deinem geheimen Link, ganz ohne Konto. Füge den Code (oder den
+          kompletten Link) ein, falls du ihn gerade nicht als Lesezeichen hast.
         </p>
 
         <div class="postfachZugang">
@@ -41,6 +42,7 @@
 
         <div id="postfachStatus" class="formStatus" role="status" aria-live="polite"></div>
 
+        <div id="beitragKopf"></div>
         <div id="postfachMeine"></div>
         <div id="postfachListe"></div>
 
@@ -55,8 +57,9 @@
 
   </div>
 
-  <script src="config.js?v=5"></script>
-  <script src="logic.js?v=5"></script>
-  <script src="postfach.js?v=5"></script>
+  <script src="config.js?v=6"></script>
+  <script src="logic.js?v=6"></script>
+  <script src="icons.js?v=6"></script>
+  <script src="postfach.js?v=6"></script>
 </body>
 </html>

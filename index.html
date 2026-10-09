@@ -9,7 +9,7 @@
   <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
   <!-- Asset-Version bei jedem CSS/JS-Deploy hochzählen (gegen Cache-Mixe) -->
-  <link rel="stylesheet" href="style.css?v=5">
+  <link rel="stylesheet" href="style.css?v=6">
 </head>
 <body>
   <div class="seite">
@@ -41,7 +41,7 @@
           <button type="button" class="pill" data-filter="gefunden">Gefunden (0)</button>
           <button type="button" class="pill" data-filter="verschenken">Verschenken (0)</button>
           <button type="button" class="pill" data-filter="gesucht">Gesucht (0)</button>
-          <button type="button" id="aktualisieren" class="pill pillAktion">🔄 Aktualisieren</button>
+          <button type="button" id="aktualisieren" class="pill pillAktion"><span class="ico" data-ico="refresh"></span> Aktualisieren</button>
         </div>
 
         <div id="feedListe" class="feedListe"></div>
@@ -66,27 +66,17 @@
             <input id="eingabeName" class="composerFeld" type="text" maxlength="60" placeholder="Name (freiwillig)" aria-label="Name (freiwillig)">
           </div>
 
-          <!-- Kontaktweg: aktive, exklusive Wahl („offen" ODER „Postfach") -->
-          <div class="kontaktWahl" id="kontaktWahl" role="radiogroup" aria-label="Wie sollen dich Leute erreichen?">
+          <!-- Kontaktweg: smarter Pill-Switch (aktive Wahl, exklusiv) -->
+          <div class="kontaktWahl" id="kontaktWahl" aria-label="Wie sollen dich Leute erreichen?">
             <div class="kontaktWahlKopf">Wie sollen dich Leute erreichen?</div>
-            <label class="kontaktOption">
-              <input type="radio" name="kontaktModus" value="offen">
-              <span class="kontaktOptionText">
-                <b>📢 Offener Kontakt</b><br>
-                Deine Kontaktangabe steht im Eintrag. Antworten kommen direkt bei dir an (z. B. per E-Mail).
-              </span>
-            </label>
-            <label class="kontaktOption">
-              <input type="radio" name="kontaktModus" value="postfach">
-              <span class="kontaktOptionText">
-                <b>🕵️ Anonymes Postfach</b><br>
-                Keine Angaben nötig. Antworten landen NUR in deinem geheimen Postfach — den Link bekommst du nach dem Eintragen.
-              </span>
-            </label>
-          </div>
-
-          <div id="kontaktFeldBlock" hidden>
-            <input id="eingabeKontakt" class="composerFeld" type="text" maxlength="200" placeholder="Dein Kontakt — z. B. E-Mail, Telefon oder @instagram" aria-label="Dein Kontakt (wird im Eintrag angezeigt)">
+            <div class="modusPills kontaktPills">
+              <button type="button" class="modusPill kontaktPill" data-kontakt="offen" aria-pressed="false"><span class="ico" data-ico="megafon"></span> Offener Kontakt</button>
+              <button type="button" class="modusPill kontaktPill" data-kontakt="postfach" aria-pressed="false"><span class="ico" data-ico="maske"></span> Anonymes Postfach</button>
+            </div>
+            <div id="kontaktInfo" class="kontaktInfo">Wähle einen Weg — du entscheidest, wie man dich erreicht.</div>
+            <div id="kontaktFeldBlock" hidden>
+              <input id="eingabeKontakt" class="composerFeld" type="text" maxlength="200" placeholder="Dein Kontakt — z. B. E-Mail, Telefon oder @instagram" aria-label="Dein Kontakt (wird im Eintrag angezeigt)">
+            </div>
           </div>
 
           <textarea id="eingabeText" class="composerFeld composerText" maxlength="500" placeholder="Gegenstand und Fundort beschreiben …" aria-label="Gegenstand und Fundort"></textarea>
@@ -95,14 +85,14 @@
           <div id="tastatur" class="tastatur" role="group" aria-label="Bildschirmtastatur"></div>
 
           <div id="standortBlock" class="standortBlock">
-            <div class="standortKopf">📍 Standort (optional)</div>
+            <div class="standortKopf"><span class="ico" data-ico="pin"></span> Standort (optional)</div>
             <div class="modusPills" role="group" aria-label="Standort-Modus">
-              <button type="button" id="btnPunkt" class="modusPill" aria-pressed="false">🎯 Genauer Punkt</button>
-              <button type="button" id="btnBereich" class="modusPill" aria-pressed="true">⭕ Bereich</button>
+              <button type="button" id="btnPunkt" class="modusPill" aria-pressed="false"><span class="ico" data-ico="ziel"></span> Genauer Punkt</button>
+              <button type="button" id="btnBereich" class="modusPill" aria-pressed="true"><span class="ico" data-ico="kreis"></span> Bereich</button>
             </div>
             <div class="standortSuche">
               <input id="standortSuche" class="composerFeld standortSucheFeld" type="text" maxlength="120" placeholder="Ort suchen — z. B. ‚Skatepark München'" aria-label="Ort suchen">
-              <button type="button" id="btnOrtSuche" class="pill pillAktion">🔍 Suchen</button>
+              <button type="button" id="btnOrtSuche" class="pill pillAktion"><span class="ico" data-ico="lupe"></span> Suchen</button>
             </div>
             <div id="ortSucheStatus" class="ortSucheStatus" role="status" aria-live="polite"></div>
             <div id="mapMini" class="mapMini"></div>
@@ -126,7 +116,7 @@
 
       <!-- Karten-Sidebar (wird in Task 6 initialisiert) -->
       <aside id="mapBox" class="mapBox">
-        <button type="button" id="mapToggle" class="mapToggle" aria-expanded="true" aria-controls="karteFenster">🗺️ Karte anzeigen</button>
+        <button type="button" id="mapToggle" class="mapToggle" aria-expanded="true" aria-controls="karteFenster"><span class="ico" data-ico="karte"></span> <span id="mapToggleText">Karte anzeigen</span></button>
         <div id="karteFenster" class="karteFenster">
           <div class="karteKopf">
             <span class="karteTitel">🗺️ Karte der Fundstücke</span>
@@ -144,7 +134,7 @@
 
     </main>
 
-    <footer class="fuss">© 2003–2026 Digitales Fundbüro · <a href="impressum.html">Impressum</a> · <a href="datenschutz.html">Datenschutz</a> · <a href="postfach.html" id="postfachLink">📬 Mein Postfach</a> · Du bist Besucher Nr. 0044711</footer>
+    <footer class="fuss">© 2003–2026 Digitales Fundbüro · <a href="impressum.html">Impressum</a> · <a href="datenschutz.html">Datenschutz</a> · <a href="postfach.html"><span class="ico" data-ico="postfach"></span> <span id="postfachLink">Meine Beiträge</span></a> · Du bist Besucher Nr. 0044711</footer>
 
   </div>
 
@@ -160,14 +150,14 @@
         </div>
         <div class="meldungKontakt" hidden></div>
       </div>
-      <button type="button" class="antwortBtn" hidden>✉️ Antworten</button>
+      <button type="button" class="antwortBtn" hidden><span class="ico" data-ico="brief"></span> Antworten</button>
     </article>
   </template>
 
   <!-- Kontakt-Dialog: „✉️ Antworten" auf eine Meldung (geht nur an den Poster) -->
   <dialog id="kontaktDialog" class="kontaktDialog" aria-label="Antwort auf eine Meldung">
     <form id="kontaktFormular" novalidate>
-      <h3 id="kontaktTitel" class="kontaktTitel">✉️ Antworten</h3>
+      <h3 class="kontaktTitel"><span class="ico" data-ico="brief" data-ico-groesse="18"></span> <span id="kontaktTitel">Antwort auf eine Meldung</span></h3>
       <p class="kontaktHinweis">Deine Angaben gehen nur an die Person, die die Meldung eingetragen hat — nie an andere Besucher.</p>
       <input id="kontaktName" class="composerFeld kontaktFeld" type="text" maxlength="60" placeholder="Dein Name (freiwillig)" aria-label="Dein Name (freiwillig)">
       <input id="kontaktEmail" class="composerFeld kontaktFeld" type="email" maxlength="200" placeholder="Deine E-Mail (für die Antwort)" aria-label="Deine E-Mail-Adresse">
@@ -184,24 +174,27 @@
   <!-- Postfach-Dialog: geheimer Link direkt nach dem Posten (Weg „Postfach") -->
   <dialog id="postfachDialog" class="kontaktDialog" aria-label="Dein anonymes Postfach">
     <div class="postfachBox">
-      <h3 class="kontaktTitel">📬 Dein Postfach ist bereit!</h3>
+      <h3 class="kontaktTitel"><span class="ico" data-ico="postfach" data-ico-groesse="18"></span> <span id="postfachTitelText">Dein Postfach ist bereit!</span></h3>
       <p class="kontaktHinweis">
-        Antworten auf <b id="postfachNr">deine Meldung</b> landen NUR hier —
-        <b>bewahre den Link unbedingt auf!</b> Ohne ihn kommst du nicht mehr an die Nachrichten.
+        <span id="postfachHinweisA">Antworten auf</span>
+        <b id="postfachNr">deine Meldung</b>
+        <span id="postfachHinweisB">landen NUR hier.</span>
+        <b>Bewahre den Link unbedingt auf</b> — mit ihm kannst du deinen Beitrag auch jederzeit wieder löschen.
       </p>
       <div class="postfachLink" id="postfachLinkText"></div>
       <div class="kontaktFuss">
-        <button type="button" id="btnPostfachKopieren" class="pill kontaktSenden">📋 Link kopieren</button>
-        <button type="button" id="btnPostfachMailen" class="pill">✉️ An mich selbst mailen</button>
+        <button type="button" id="btnPostfachKopieren" class="pill kontaktSenden"><span class="ico" data-ico="clipboard"></span> Link kopieren</button>
+        <button type="button" id="btnPostfachMailen" class="pill"><span class="ico" data-ico="brief"></span> An mich selbst mailen</button>
         <button type="button" id="btnPostfachFertig" class="pill">Fertig</button>
       </div>
       <div id="postfachStatus" class="formStatus" role="status" aria-live="polite"></div>
     </div>
   </dialog>
 
-  <script src="config.js?v=5"></script>
-  <script src="logic.js?v=5"></script>
+  <script src="config.js?v=6"></script>
+  <script src="logic.js?v=6"></script>
+  <script src="icons.js?v=6"></script>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <script src="app.js?v=5"></script>
+  <script src="app.js?v=6"></script>
 </body>
 </html>
