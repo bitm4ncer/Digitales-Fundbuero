@@ -1,9 +1,9 @@
 /* =========================================================
    Digitales Fundbüro — app.js
-   Ausbaustufe Task 6: Karten-Sidebar (Pins, Bereichs-Kreise,
-   Popups, mobil einklappbar) — aufbauend auf Task 5 (echter
-   geteilter Feed), Task 3 (Feed-Liste) und Task 4 (Composer
-   mit Tastatur/Validierung). Standort im Formular folgt in Task 7.
+   Ausbaustufe Task 7: Standort im Formular (genauer Punkt oder
+   Bereich) mit Mini-Karte — aufbauend auf Task 6 (Karten-Sidebar),
+   Task 5 (echter geteilter Feed), Task 4 (Composer mit Tastatur/
+   Validierung) und Task 3 (Feed-Liste).
 
    Abschnitte:
    1. State
@@ -21,7 +21,8 @@
 /* ---------- 1. State ---------- */
 
 // filter: 'alle' | 'verloren' | 'gefunden'
-// composer: Eingaben des Formulars; standort füllt Task 7.
+// composer: Eingaben des Formulars. standort (Task 7) ist null (kein
+// Standort) oder { lat, lng, radius_m }; radius_m null = genauer Punkt.
 const state = { meldungen: [], filter: 'alle', composer: { art: 'verloren', standort: null } };
 
 // sendet: Reentrancy-Guard — während eines laufenden POST ist der Absende-Button gesperrt.
@@ -32,6 +33,11 @@ let karte = null;
 let pinEbene = null;
 let kreisEbene = null;
 let pinAnzahl = 0;
+// Task 7: Mini-Karte im Formular + aktueller Modus ('bereich' | 'punkt').
+let karteMini = null;
+let markerMini = null;
+let kreisMini = null;
+let standortModus = 'bereich';
 
 const FILTER_WERTE = ['alle', 'verloren', 'gefunden'];
 const EIN_TAG_MS = 24 * 60 * 60 * 1000; // Fenster für das NEU!-Chip
@@ -46,6 +52,7 @@ const KARTE_ZOOM = 6;
 const KARTE_TILES = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
 const KARTE_ATTRIBUTION = '© OpenStreetMap-Mitwirkende';
 const MOBIL_QUERY = '(max-width: 860px)'; // synchron zu style.css
+const RADIUS_START = 300; // Standort-Regler (Task 7): 50–1000 m, Start 300
 
 // Pin-Farben/-Buchstaben exakt wie im Mockup (hell → dunkel).
 const PIN_FARBEN = {
@@ -386,6 +393,125 @@ function initialisiereMobilEinklappen() {
   aktualisiereKarteToggle();
 }
 
+/* --- Standort im Formular (Task 7) --- */
+
+// Radius in Metern aus dem Slider (Fallback: Startwert 300).
+function radiusWert() {
+  const regler = document.getElementById('radius');
+  const wert = regler ? Number(regler.value) : NaN;
+  return Number.isFinite(wert) && wert > 0 ? wert : RADIUS_START;
+}
+
+// Anzeige neben dem Regler: „ca. X m" — funktioniert auch ohne Leaflet.
+function aktualisiereRadiusAnzeige() {
+  const anzeige = document.getElementById('radiusVal');
+  if (anzeige) { anzeige.textContent = 'ca. ' + radiusWert() + ' m'; }
+}
+
+// Slider-Eingabe: Anzeige und Kreis live nachziehen. In den Composer-State
+// wandert radius_m nur im Bereich-Modus (Punkt = genauer Ort, radius null).
+function setzeRadius(wert) {
+  const meter = Number(wert);
+  const radius = Number.isFinite(meter) && meter > 0 ? meter : RADIUS_START;
+  const anzeige = document.getElementById('radiusVal');
+  if (anzeige) { anzeige.textContent = 'ca. ' + radius + ' m'; }
+  if (kreisMini) { kreisMini.setRadius(radius); }
+  if (state.composer.standort && standortModus === 'bereich') {
+    state.composer.standort.radius_m = radius;
+  }
+}
+
+// Setzt/verschiebt den Formular-Pin und synct den Kreis. Erst Klick oder
+// Drag zählen als Standort — der vorbelegte Pin auf Deutschland-Mitte
+// bleibt bis dahin koordinatenlos (standort null → Payload null).
+function setzeStandort(lat, lng) {
+  state.composer.standort = {
+    lat: lat,
+    lng: lng,
+    radius_m: standortModus === 'bereich' ? radiusWert() : null
+  };
+  if (markerMini) { markerMini.setLatLng([lat, lng]); }
+  if (kreisMini) { kreisMini.setLatLng([lat, lng]); }
+}
+
+// Modus „🎯 Genauer Punkt" / „⭕ Bereich": Optik über aria-pressed (CSS
+// wie Mockup: aktiv gelb, inaktiv weiß), Radius-Zeile und Kreis aus- bzw.
+// einblenden. Im Punkt-Modus wird radius_m auf null gesetzt.
+function setStandortModus(modus) {
+  if (modus !== 'punkt' && modus !== 'bereich') { return; }
+  standortModus = modus;
+
+  const punktBtn = document.getElementById('btnPunkt');
+  const bereichBtn = document.getElementById('btnBereich');
+  if (punktBtn) { punktBtn.setAttribute('aria-pressed', modus === 'punkt' ? 'true' : 'false'); }
+  if (bereichBtn) { bereichBtn.setAttribute('aria-pressed', modus === 'bereich' ? 'true' : 'false'); }
+
+  const radiusZeile = document.querySelector('#standortBlock .radiusZeile');
+  if (radiusZeile) { radiusZeile.hidden = modus === 'punkt'; }
+
+  if (kreisMini) {
+    if (modus === 'bereich') {
+      kreisMini.setRadius(radiusWert());
+      kreisMini.setStyle({ opacity: 1, fillOpacity: 0.12 });
+    } else {
+      kreisMini.setStyle({ opacity: 0, fillOpacity: 0 });
+    }
+  }
+
+  if (state.composer.standort) {
+    state.composer.standort.radius_m = modus === 'bereich' ? radiusWert() : null;
+  }
+}
+
+// Erfolgs-Reset (Task 7): Standort vergessen, Modus Bereich, Regler 300 m,
+// Pin und Kreis zurück auf Deutschland-Default (Vorbelegung wie beim Start).
+function setzeStandortZurueck() {
+  state.composer.standort = null;
+
+  const regler = document.getElementById('radius');
+  if (regler) { regler.value = String(RADIUS_START); }
+
+  setStandortModus('bereich');
+  setzeRadius(RADIUS_START);
+
+  if (markerMini) { markerMini.setLatLng(KARTE_MITTE); }
+  if (kreisMini) { kreisMini.setLatLng(KARTE_MITTE); }
+  if (karteMini && typeof karteMini.setView === 'function') { karteMini.setView(KARTE_MITTE, KARTE_ZOOM); }
+}
+
+// Mini-Karte im Composer: zweite Leaflet-Instanz (kein Scroll-Zoom) wie die
+// Seitenkarte auf Deutschland-Mitte/Zoom 6, roter, ziehbarer „verloren"-Pin
+// (bleibt immer rot, unabhängig von Verloren/Gefunden) und roter Bereichs-
+// Kreis aus dem Regler. Fehlt Leaflet (CDN/offline), bleiben Regler, Pills
+// und Modus bedienbar; ohne Klick bleibt standort null und der POST
+// überträgt null/null/null.
+function initialisiereMiniKarte() {
+  const behaelter = document.getElementById('mapMini');
+  if (!behaelter || typeof L === 'undefined' || !L || typeof L.map !== 'function') { return; }
+
+  karteMini = L.map(behaelter, { scrollWheelZoom: false, zoomControl: true }).setView(KARTE_MITTE, KARTE_ZOOM);
+  L.tileLayer(KARTE_TILES, { maxZoom: 19, attribution: KARTE_ATTRIBUTION }).addTo(karteMini);
+
+  markerMini = L.marker(KARTE_MITTE, { icon: pinIcon('verloren'), draggable: true }).addTo(karteMini);
+  kreisMini = L.circle(KARTE_MITTE, {
+    radius: radiusWert(),
+    color: PIN_FARBEN.verloren.dunkel,
+    weight: 2,
+    fillColor: PIN_FARBEN.verloren.dunkel,
+    fillOpacity: 0.12
+  }).addTo(karteMini);
+
+  karteMini.on('click', function (ereignis) {
+    if (ereignis && ereignis.latlng) { setzeStandort(ereignis.latlng.lat, ereignis.latlng.lng); }
+  });
+  markerMini.on('drag', function () {
+    const punkt = markerMini.getLatLng();
+    setzeStandort(punkt.lat, punkt.lng);
+  });
+
+  setStandortModus(standortModus); // Kreis-Style und Radius-Zeile initial synchron
+}
+
 // Eine Tastatur-Taste als echter <button type="button"> mit
 // Mockup-Farbklasse (Umlaute gelb, Satzzeichen grau, ⌫ rot).
 function erzeugeTaste(kappe) {
@@ -521,8 +647,8 @@ function setzeSendeZustand(aktiv) {
   if (button) { button.disabled = aktiv; }
 }
 
-// Erfolg: Felder leeren, Art zurück auf VERLOREN, Zähler 0/500.
-// (Standort und Mini-Karte setzt Task 7 nach dem Posten zurück.)
+// Erfolg: Felder leeren, Art zurück auf VERLOREN, Zähler 0/500 und Standort
+// vergessen (Task 7: Modus Bereich, 300 m, Pin/Kreis auf Deutschland-Default).
 function leereFormular() {
   const feldText = document.getElementById('eingabeText');
   const feldName = document.getElementById('eingabeName');
@@ -531,6 +657,7 @@ function leereFormular() {
   if (feldName) { feldName.value = ''; }
   if (feldKontakt) { feldKontakt.value = ''; }
   setArt('verloren');
+  setzeStandortZurueck();
   aktualisiereZaehler();
 }
 
@@ -614,6 +741,25 @@ function verdrahteComposer() {
   });
 }
 
+// Task 7: Modus-Pills („🎯 Genauer Punkt" / „⭕ Bereich") und Radius-
+// Regler des Standort-Blocks verdrahten.
+function verdrahteStandort() {
+  const punktBtn = document.getElementById('btnPunkt');
+  if (punktBtn) {
+    punktBtn.addEventListener('click', function () { setStandortModus('punkt'); });
+  }
+
+  const bereichBtn = document.getElementById('btnBereich');
+  if (bereichBtn) {
+    bereichBtn.addEventListener('click', function () { setStandortModus('bereich'); });
+  }
+
+  const regler = document.getElementById('radius');
+  if (regler) {
+    regler.addEventListener('input', function () { setzeRadius(regler.value); });
+  }
+}
+
 // Task 6: Mobiler Karten-Button („Karte anzeigen (n)" / „Karte verbergen")
 // und die Popup-Links „Zur Meldung ↓" in der Sidebar-Karte verdrahten.
 function verdrahteKarte() {
@@ -677,6 +823,7 @@ function verdrahteEvents() {
   verdrahteKarte(); // Task 6: Karten-Toggle + Popup-Links
 
   verdrahteComposer();
+  verdrahteStandort(); // Task 7: Modus-Pills + Radius-Regler
 }
 
 /* ---------- 5. Init ---------- */
@@ -686,7 +833,9 @@ function init() {
   verdrahteEvents();
   setArt(state.composer.art);
   aktualisiereZaehler();
+  aktualisiereRadiusAnzeige(); // Task 7: Regler-Anzeige aus dem Slider
   initialisiereMobilEinklappen(); // Task 6: mobil startet die Karte eingeklappt
+  initialisiereMiniKarte(); // Task 7: Standort-Mini-Karte im Composer
   ladeMeldungen(); // Task 5: echte Einträge aus Supabase oder Nicht-angeschlossen-Hinweis
   initialisiereKarte(); // Task 6: Leaflet nach dem ersten renderFeed() aufbauen
 }
