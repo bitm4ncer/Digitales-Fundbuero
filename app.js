@@ -23,9 +23,10 @@
 // filter: 'alle' | 'verloren' | 'gefunden' | 'verschenken' | 'gesucht'
 // sort: 'neu' (id desc) | 'beliebt' (Stimmen desc); stimmenAktiv: ist die
 // Stimmen-Spalte geladen (Migration Abschnitt 6)? Sonst bleibt die Vote-UI aus.
+// eigeneStimmen: { [meldungId]: true } — die per IP-Hash erkannten eigenen Stimmen.
 // composer: Eingaben des Formulars. standort (Task 7) ist null (kein
 // Standort) oder { lat, lng, radius_m }; radius_m null = genauer Punkt.
-const state = { meldungen: [], filter: 'alle', sort: 'neu', stimmenAktiv: false, composer: { art: 'verloren', standort: null, kontaktModus: '' } };
+const state = { meldungen: [], filter: 'alle', sort: 'neu', stimmenAktiv: false, eigeneStimmen: {}, composer: { art: 'verloren', standort: null, kontaktModus: '' } };
 
 // sendet: Reentrancy-Guard — während eines laufenden POST ist der Absende-Button gesperrt.
 // karte/pinEbene/kreisEbene: Leaflet-Instanz der Sidebar (Task 6); pinAnzahl speist
@@ -210,11 +211,92 @@ function ladeMeldungen() {
       state.meldungen = Array.isArray(daten) ? daten : [];
       versteckeStatusHinweis();
       renderFeed();
+      if (state.stimmenAktiv) { ladeMeineStimmen(); }
     })
     .catch(function (fehler) {
       // HTTP-Fehler wie bisher; AbortError/Netzfehler → statusAus null → fehlerText(null).
       zeigeStatusHinweis(FundbueroLogik.fehlerText(statusAus(fehler)));
     });
+}
+
+// Stimmen („▲"): eigene Stimmen vom Server holen und die Knöpfe markieren.
+// Fehler bleiben still — rein kosmetisch, alles andere läuft normal weiter.
+function ladeMeineStimmen() {
+  return fetch(supabaseBasis() + '/rest/v1/rpc/meine_stimmen', {
+    method: 'POST',
+    headers: supabaseHeader({ 'Content-Type': 'application/json' }),
+    body: '{}'
+  }).then(function (antwort) {
+    if (!antwort.ok) { throw httpFehler(antwort.status); }
+    return antwort.json();
+  }).then(function (reihen) {
+    state.eigeneStimmen = {};
+    (Array.isArray(reihen) ? reihen : []).forEach(function (reihe) {
+      if (reihe && reihe.meldung_id != null) { state.eigeneStimmen[reihe.meldung_id] = true; }
+    });
+    syncStimmenKnoepfe();
+  }).catch(function () {
+    // bewusst still: bis hierher gilt „nicht gestimmt".
+  });
+}
+
+// aria-pressed aller sichtbaren Stimmen-Knöpfe an state.eigeneStimmen angleichen.
+function syncStimmenKnoepfe() {
+  document.querySelectorAll('#feedListe .stimmeBtn').forEach(function (knopf) {
+    const id = Number(knopf.dataset.meldungId);
+    knopf.setAttribute('aria-pressed', state.eigeneStimmen[id] ? 'true' : 'false');
+  });
+}
+
+// Ein Klick auf „▲": optimistisch umschalten, dann den Server fragen —
+// bei Fehlern zurückrollen (der Server bleibt Quelle der Wahrheit).
+function stimmeUmschalten(meldungId, knopf) {
+  if (!knopf || knopf.disabled) { return; }
+  const zahl = knopf.querySelector('.stimmeZahl');
+  const vorher = {
+    stimmen: Math.max(0, Math.floor(Number(zahl ? zahl.textContent : 0) || 0)),
+    gestimmt: knopf.getAttribute('aria-pressed') === 'true'
+  };
+  const anwenden = function (stand) {
+    if (zahl) { zahl.textContent = String(stand.stimmen); }
+    knopf.setAttribute('aria-pressed', stand.gestimmt ? 'true' : 'false');
+  };
+  anwenden(FundbueroLogik.toggleStimmenstand(vorher));
+  knopf.disabled = true;
+
+  fetch(supabaseBasis() + '/rest/v1/rpc/meldung_stimme', {
+    method: 'POST',
+    headers: supabaseHeader({ 'Content-Type': 'application/json' }),
+    body: JSON.stringify({ p_meldung_id: meldungId })
+  }).then(function (antwort) {
+    if (!antwort.ok) { throw httpFehler(antwort.status); }
+    return antwort.json();
+  }).then(function (daten) {
+    if (!daten || daten.ok !== true) {
+      // Fachlicher Fehler (z. B. Drossel/Sperre) — Nachricht kommt vom Server.
+      const fachlich = new Error((daten && daten.fehler) || 'Das hat gerade nicht geklappt — versuch es nochmal.');
+      fachlich.fachlich = true;
+      throw fachlich;
+    }
+    const stand = { stimmen: Number(daten.stimmen) || 0, gestimmt: daten.gestimmt === true };
+    anwenden(stand);
+    if (stand.gestimmt) { state.eigeneStimmen[meldungId] = true; } else { delete state.eigeneStimmen[meldungId]; }
+    if (stand.gestimmt) {
+      // Reichweitenmessung: nur das Hochzählen zählt als Conversion.
+      try {
+        if (window.umami && typeof window.umami.track === 'function') {
+          Promise.resolve(window.umami.track('stimme-abgegeben')).catch(function () {});
+        }
+      } catch (fehler) { /* bewusst still: Analytics ist optional */ }
+    }
+  }).catch(function (fehler) {
+    anwenden(vorher); // Rollback — nichts ist passiert
+    zeigeStatusHinweis(fehler && fehler.fachlich
+      ? fehler.message
+      : 'Das hat gerade nicht geklappt — versuch es nochmal.');
+  }).then(function () {
+    knopf.disabled = false;
+  });
 }
 
 // Task 5: POST einer validierten Meldung. Body: art, text, name, kontakt,
@@ -348,6 +430,19 @@ function baueKarte(meldung, vorlage) {
   } else if (meldung.kontakt_modus === 'postfach' && antwort) {
     antwort.hidden = false;
     antwort.addEventListener('click', function () { oeffneKontaktDialog(meldung); });
+  }
+
+  // Stimmen („Beliebt"): Knopf nur zeigen, wenn die Stimmen-Spalte da ist.
+  // Der Klick-Handler sitzt als Delegation auf #feedListe (einmalig).
+  const stimme = karte.querySelector('.stimmeBtn');
+  if (stimme && state.stimmenAktiv) {
+    stimme.hidden = false;
+    stimme.dataset.meldungId = String(meldung.id);
+    const stimmeZahl = stimme.querySelector('.stimmeZahl');
+    if (stimmeZahl) { stimmeZahl.textContent = String(Math.max(0, Math.floor(Number(meldung.stimmen) || 0))); }
+    const eigen = !!state.eigeneStimmen[meldung.id];
+    stimme.setAttribute('aria-pressed', eigen ? 'true' : 'false');
+    stimme.setAttribute('aria-label', 'Stimme für Nr. ' + FundbueroLogik.formatNummer(meldung.id, meldung.created_at));
   }
 
   if (istNeu(meldung.created_at)) {
@@ -1468,6 +1563,17 @@ function verdrahteEvents() {
       sortBeliebt.classList.toggle('pillAktiv', aktiv);
       sortBeliebt.setAttribute('aria-pressed', aktiv ? 'true' : 'false');
       ladeMeldungen();
+    });
+  }
+
+  // Stimmen: Delegation auf der Feed-Liste (gilt für alle geklonten Karten).
+  const feedListe = document.getElementById('feedListe');
+  if (feedListe) {
+    feedListe.addEventListener('click', function (ereignis) {
+      const knopf = ereignis.target && ereignis.target.closest
+        ? ereignis.target.closest('.stimmeBtn')
+        : null;
+      if (knopf && !knopf.hidden) { stimmeUmschalten(Number(knopf.dataset.meldungId), knopf); }
     });
   }
 
