@@ -106,6 +106,12 @@
       '<rect x="4.5" y="10" width="15" height="10.5" rx="2" fill="#fff6d8" stroke="#e07a00" stroke-width="2.2"/>' +
       '<path d="M8 10V7.5a4 4 0 0 1 8 0V10" fill="none" stroke="#e07a00" stroke-width="2.2"/>' +
       '<circle cx="12" cy="14.5" r="1.7" fill="#e07a00"/><path d="M12 15.8v2.2" stroke="#e07a00" stroke-width="1.8" stroke-linecap="round"/>' +
+      '</svg>',
+
+    hoch:
+      '<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">' +
+      '<path d="M12 3.2 4.6 11h4.6v8.8h5.6V11h4.6z" fill="#ffd200" stroke="#e07a00" stroke-width="1.8" stroke-linejoin="round"/>' +
+      '<path d="M9.2 9.6l1.6-1.7" stroke="#ffffff" stroke-width="1.4" stroke-linecap="round" fill="none"/>' +
       '</svg>'
   };
 

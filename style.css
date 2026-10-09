@@ -579,6 +579,45 @@ button:focus-visible, input:focus-visible, textarea:focus-visible {
   cursor: pointer;
 }
 
+/* ---------- Stimmen (Upvotes) ---------- */
+
+/* „▲ N" — kleine glossy Pill rechts auf der Karte, direkt vor „Antworten".
+   Gedrückt (gestimmt) = gelbe Aktiv-Optik mit Inset wie eine echte Taste. */
+.stimmeBtn {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  font-weight: bold;
+  color: var(--aktion);
+  background: linear-gradient(#fff, #e8f1ff);
+  border: 1px solid var(--blau-rand2);
+  border-radius: 999px;
+  padding: 3px 10px 4px;
+  cursor: pointer;
+}
+
+.stimmeBtn:hover { border-color: var(--tiefblau); }
+
+/* Nur wenn der Knopf sichtbar ist, übernimmt er den Rechts-Anschub —
+   „Antworten" rückt dann mit kleinem Abstand daneben. */
+.stimmeBtn:not([hidden]) { margin-left: auto; }
+.stimmeBtn:not([hidden]) + .antwortBtn { margin-left: 4px; }
+
+.stimmeBtn[aria-pressed="true"] {
+  background: var(--verlauf-gelb);
+  border-color: #e07a00;
+  color: var(--gelb-braun);
+  box-shadow: inset 0 2px 3px rgba(153, 102, 0, .35);
+}
+
+.stimmeBtn:disabled { opacity: .6; cursor: wait; }
+
+.stimmeZahl { min-width: 1ch; text-align: center; }
+
+.stimmeBtn:focus-visible { outline: 2px solid var(--aktion); outline-offset: 2px; }
+
 .kontaktDialog {
   border: 2px solid var(--blau-rand2);
   border-radius: 12px;
