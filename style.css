@@ -1025,6 +1025,11 @@ button:focus-visible, input:focus-visible, textarea:focus-visible {
   .mapSidebar { height: 280px; }
 
   .mapMini { height: 180px; }
+
+  /* 16px verhindert den Auto-Zoom des Browsers beim Fokussieren der Felder
+     (iOS/Safari zoomt alles unter 16px automatisch auf und schneidet dabei
+     die Bildschirmtastatur ab). */
+  input, select, textarea { font-size: 16px; }
 }
 
 @media (max-width: 480px) {
