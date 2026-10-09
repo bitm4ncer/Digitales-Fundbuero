@@ -127,6 +127,15 @@
       lng >= -180 && lng <= 180;
   }
 
+  // Einfache, praxistaugliche E-Mail-Prüfung (Kontaktformular „Antworten").
+  // Bewusst kein RFC-Parser — nur „eine @ mit etwas drumherum".
+  function istGueltigeEmail(text) {
+    if (typeof text !== 'string') { return false; }
+    var wert = text.trim();
+    if (wert.length < 5 || wert.length > 200) { return false; }
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(wert);
+  }
+
   // Freundliche Amts-Meldung je Fehlerstatus (null = Netzfehler).
   function fehlerText(status) {
     if (status === null || status === undefined) {
@@ -146,6 +155,7 @@
     insertFuerText: insertFuerText,
     loescheZurueck: loescheZurueck,
     istGueltigeKoordinate: istGueltigeKoordinate,
+    istGueltigeEmail: istGueltigeEmail,
     fehlerText: fehlerText
   };
 }));

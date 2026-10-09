@@ -4,9 +4,10 @@
 
 Statische Y2K-Webseite, auf der Fundbüro-Meldungen („Verloren“ / „Gefunden“) öffentlich gepostet und im Feed oder auf einer Karte angezeigt werden. Vanilla JS ohne Build-Schritt, Supabase (REST) als Datenbank, Leaflet/OpenStreetMap für die Karte.
 
-- Feed mit Filtern `Alle · Verloren · Gefunden` und sticky Karten-Sidebar (mobil einklappbar via „🗺️ Karte anzeigen")
-- Posten-Formular mit optionalem Standort (genauer Punkt oder Bereich) und Bildschirmtastatur
+- Feed mit Filtern `Alle · Verloren · Gefunden · Verschenken` und sticky Karten-Sidebar (mobil einklappbar via „🗺️ Karte anzeigen")
+- Posten-Formular mit optionalem Standort (genauer Punkt oder Bereich, Ortssuche per OpenStreetMap/Nominatim) und Bildschirmtastatur
 - Karte mit farbigen Pins und Bereichs-Kreisen (Leaflet/OSM)
+- „✉️ Antworten" auf Meldungen: Nachricht geht per E-Mail an den Poster, Kontaktdaten bleiben privat (Kontakt-Relay, siehe `docs/kontakt-relay-setup.md`)
 - Impressum, Datenschutz-Minimum und Fundpflicht-Disclaimer
 
 ## Lokal entwickeln

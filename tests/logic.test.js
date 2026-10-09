@@ -52,6 +52,15 @@ test('istGueltigeKoordinate: akzeptiert nur endliche Werte im Bereich', () => {
   assert.equal(L.istGueltigeKoordinate(48, 181), false);
 });
 
+test('istGueltigeEmail: akzeptiert nur plausible Adressen', () => {
+  assert.equal(L.istGueltigeEmail('kontakt@jannesbecherer.de'), true);
+  assert.equal(L.istGueltigeEmail('  a.b+tag@sub.example.org  '), true);
+  assert.equal(L.istGueltigeEmail('keine-mail'), false);
+  assert.equal(L.istGueltigeEmail('a@b'), false);
+  assert.equal(L.istGueltigeEmail('a b@c.de'), false);
+  assert.equal(L.istGueltigeEmail(null), false);
+});
+
 test('fehlerText: freundliche Meldungen je Status', () => {
   assert.match(L.fehlerText(null), /Kabel zum Amt/);
   assert.match(L.fehlerText(401), /Schlüssel/);

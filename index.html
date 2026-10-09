@@ -9,7 +9,7 @@
   <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
   <!-- Asset-Version bei jedem CSS/JS-Deploy hochzählen (gegen Cache-Mixe) -->
-  <link rel="stylesheet" href="style.css?v=2">
+  <link rel="stylesheet" href="style.css?v=3">
 </head>
 <body>
   <div class="seite">
@@ -62,7 +62,7 @@
 
           <div class="composerZeile">
             <input id="eingabeName" class="composerFeld" type="text" maxlength="60" placeholder="Name (freiwillig)" aria-label="Name (freiwillig)">
-            <input id="eingabeKontakt" class="composerFeld" type="text" maxlength="200" placeholder="Kontakt (freiwillig)" aria-label="Kontakt (freiwillig)">
+            <input id="eingabeKontakt" class="composerFeld" type="text" maxlength="200" placeholder="Kontakt (privat — nur für Antworten)" aria-label="Kontakt (privat — nur für Antworten, wird nie veröffentlicht)">
           </div>
 
           <textarea id="eingabeText" class="composerFeld composerText" maxlength="500" placeholder="Gegenstand und Fundort beschreiben …" aria-label="Gegenstand und Fundort"></textarea>
@@ -135,12 +135,30 @@
           <span class="neuChip" hidden>NEU!</span>
         </div>
       </div>
+      <button type="button" class="antwortBtn" hidden>✉️ Antworten</button>
     </article>
   </template>
 
-  <script src="config.js?v=2"></script>
-  <script src="logic.js?v=2"></script>
+  <!-- Kontakt-Dialog: „✉️ Antworten" auf eine Meldung (geht nur an den Poster) -->
+  <dialog id="kontaktDialog" class="kontaktDialog" aria-label="Antwort auf eine Meldung">
+    <form id="kontaktFormular" novalidate>
+      <h3 id="kontaktTitel" class="kontaktTitel">✉️ Antworten</h3>
+      <p class="kontaktHinweis">Deine Angaben gehen nur an die Person, die die Meldung eingetragen hat — nie an andere Besucher.</p>
+      <input id="kontaktName" class="composerFeld kontaktFeld" type="text" maxlength="60" placeholder="Dein Name (freiwillig)" aria-label="Dein Name (freiwillig)">
+      <input id="kontaktEmail" class="composerFeld kontaktFeld" type="email" maxlength="200" placeholder="Deine E-Mail (für die Antwort)" aria-label="Deine E-Mail-Adresse">
+      <textarea id="kontaktNachricht" class="composerFeld kontaktFeld" maxlength="1000" placeholder="Deine Nachricht — z. B. wo du es gefunden hast oder wie man dich erreicht …" aria-label="Deine Nachricht"></textarea>
+      <input id="kontaktWebsite" class="honig" type="text" tabindex="-1" autocomplete="off" aria-hidden="true">
+      <div class="kontaktFuss">
+        <button type="button" id="btnKontaktSenden" class="pill kontaktSenden">Absenden</button>
+        <button type="button" id="btnKontaktAbbrechen" class="pill">Abbrechen</button>
+      </div>
+      <div id="kontaktStatus" class="formStatus" role="status" aria-live="polite"></div>
+    </form>
+  </dialog>
+
+  <script src="config.js?v=3"></script>
+  <script src="logic.js?v=3"></script>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <script src="app.js?v=2"></script>
+  <script src="app.js?v=3"></script>
 </body>
 </html>

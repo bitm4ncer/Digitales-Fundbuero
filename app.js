@@ -148,6 +148,27 @@ function versteckeStatusHinweis() {
   hinweis.hidden = true;
 }
 
+// Spalten fürs Laden. „hat_kontakt" stammt aus dem Kontakt-Relay-Setup
+// (docs/supabase-setup.sql, Schritt 4): fehlt die Spalte noch, fällt die App
+// einmalig auf die Basisspalten zurück — Antwort-Knöpfe bleiben dann aus.
+const FELDER_BASIS = 'id,created_at,art,text,name,lat,lng,radius_m';
+const FELDER_MIT_KONTAKT = FELDER_BASIS + ',hat_kontakt';
+
+function holeMeldungen(felder) {
+  const controller = new AbortController();
+  const timer = setTimeout(function () { controller.abort(); }, FETCH_TIMEOUT_MS);
+
+  return fetch(supabaseBasis() + '/rest/v1/meldungen?select=' + felder + '&order=id.desc&limit=200', {
+    headers: supabaseHeader(),
+    signal: controller.signal
+  }).then(function (antwort) {
+    if (!antwort.ok) { throw httpFehler(antwort.status); }
+    return antwort.json();
+  }).finally(function () {
+    clearTimeout(timer); // Timer auch bei Erfolg/HTTP-Fehler aufräumen
+  });
+}
+
 // Task 5: GET der neuesten 200 Meldungen. Unkonfiguriert → Hinweis statt
 // Karten; Fehler landen in #statusHinweis (kein Absturz, kein leerer Screen).
 function ladeMeldungen() {
@@ -158,15 +179,13 @@ function ladeMeldungen() {
     return Promise.resolve();
   }
 
-  const controller = new AbortController();
-  const timer = setTimeout(function () { controller.abort(); }, FETCH_TIMEOUT_MS);
-
-  return fetch(supabaseBasis() + '/rest/v1/meldungen?select=*&order=id.desc&limit=200', {
-    headers: supabaseHeader(),
-    signal: controller.signal
-  }).then(function (antwort) {
-    if (!antwort.ok) { throw httpFehler(antwort.status); }
-    return antwort.json();
+  return holeMeldungen(FELDER_MIT_KONTAKT).catch(function (fehler) {
+    // Spalte „hat_kontakt" existiert noch nicht (z. B. vor dem Setup-SQL):
+    // einmalig ohne sie erneut laden — der Rest bleibt ganz normal.
+    if (fehler && fehler.status === 400) {
+      return holeMeldungen(FELDER_BASIS);
+    }
+    throw fehler;
   }).then(function (daten) {
     state.meldungen = Array.isArray(daten) ? daten : [];
     versteckeStatusHinweis();
@@ -174,8 +193,6 @@ function ladeMeldungen() {
   }).catch(function (fehler) {
     // HTTP-Fehler wie bisher; AbortError/Netzfehler → statusAus null → fehlerText(null).
     zeigeStatusHinweis(FundbueroLogik.fehlerText(statusAus(fehler)));
-  }).finally(function () {
-    clearTimeout(timer); // Timer auch bei Erfolg/HTTP-Fehler aufräumen
   });
 }
 
@@ -269,6 +286,14 @@ function baueKarte(meldung, vorlage) {
     'Nr. ' + FundbueroLogik.formatNummer(meldung.id, meldung.created_at);
   karte.querySelector('.meldungVon').textContent = 'von ' + (name || 'Anonym');
   karte.querySelector('.meldungDatum').textContent = FundbueroLogik.formatDatum(meldung.created_at);
+
+  // Kontakt-Relay: „✉️ Antworten" nur für Meldungen mit hinterlegtem Kontakt
+  // (Flag kommt aus der DB; fehlt es noch, bleibt der Knopf versteckt).
+  const antwort = karte.querySelector('.antwortBtn');
+  if (antwort && meldung.hat_kontakt === true) {
+    antwort.hidden = false;
+    antwort.addEventListener('click', function () { oeffneKontaktDialog(meldung); });
+  }
 
   if (istNeu(meldung.created_at)) {
     karte.querySelector('.neuChip').hidden = false;
@@ -599,6 +624,143 @@ function sucheOrt() {
   });
 }
 
+/* ---------- Kontakt-Relay („Antworten" auf eine Meldung) ---------- */
+
+// Aktuelle Meldung im Antwort-Dialog (null = keiner offen) + Sende-Guard.
+let kontaktMeldung = null;
+let kontaktSendet = false;
+
+function setzeKontaktStatus(text, erfolg) {
+  const status = document.getElementById('kontaktStatus');
+  if (!status) { return; }
+  status.textContent = text;
+  status.classList.toggle('ok', !!erfolg);
+}
+
+function setzeKontaktSendeZustand(sendet) {
+  kontaktSendet = sendet;
+  const knopf = document.getElementById('btnKontaktSenden');
+  if (knopf) { knopf.disabled = sendet; }
+}
+
+// Dialog öffnen: Titel mit Meldungs-Nr., Felder leeren, Fokus ins E-Mail-Feld.
+function oeffneKontaktDialog(meldung) {
+  const dialog = document.getElementById('kontaktDialog');
+  if (!dialog || !meldung) { return; }
+  kontaktMeldung = meldung;
+
+  const titel = document.getElementById('kontaktTitel');
+  if (titel) {
+    titel.textContent = '✉️ Antwort auf Nr. ' +
+      FundbueroLogik.formatNummer(meldung.id, meldung.created_at);
+  }
+  ['kontaktName', 'kontaktEmail', 'kontaktNachricht', 'kontaktWebsite'].forEach(function (id) {
+    const feld = document.getElementById(id);
+    if (feld) { feld.value = ''; }
+  });
+  setzeKontaktStatus('', false);
+  setzeKontaktSendeZustand(false);
+
+  if (typeof dialog.showModal === 'function') { dialog.showModal(); }
+  else { dialog.setAttribute('open', ''); }
+  const email = document.getElementById('kontaktEmail');
+  if (email) { email.focus(); }
+}
+
+function schliesseKontaktDialog() {
+  const dialog = document.getElementById('kontaktDialog');
+  kontaktMeldung = null;
+  if (!dialog) { return; }
+  if (typeof dialog.close === 'function' && dialog.open) { dialog.close(); }
+  else { dialog.removeAttribute('open'); }
+}
+
+// Anfrage an die Supabase-Edge-Function (dort liegt der Briefkasten-Schlitz;
+// die Kontaktdaten des Posters verlassen die Datenbank nie in Richtung Browser).
+function sendeKontaktAnfrage() {
+  if (kontaktSendet || !kontaktMeldung) { return; }
+  if (!istKonfiguriert()) {
+    setzeKontaktStatus('Das Amt ist noch nicht angeschlossen … Bald geht\'s los!', false);
+    return;
+  }
+
+  const email = ((document.getElementById('kontaktEmail') || {}).value || '').trim();
+  const nachricht = ((document.getElementById('kontaktNachricht') || {}).value || '').trim();
+  const name = ((document.getElementById('kontaktName') || {}).value || '').trim();
+  const website = ((document.getElementById('kontaktWebsite') || {}).value || '');
+
+  if (!FundbueroLogik.istGueltigeEmail(email)) {
+    setzeKontaktStatus('Bitte gib eine gültige E-Mail an — sonst kann dir niemand antworten.', false);
+    return;
+  }
+  if (nachricht.length < 3) {
+    setzeKontaktStatus('Schreib noch ein paar Worte — mindestens 3 Zeichen.', false);
+    return;
+  }
+
+  setzeKontaktSendeZustand(true);
+  setzeKontaktStatus('Wird verschickt …', false);
+
+  const controller = new AbortController();
+  const timer = setTimeout(function () { controller.abort(); }, FETCH_TIMEOUT_MS);
+
+  fetch(supabaseBasis() + '/functions/v1/kontakt-relay', {
+    method: 'POST',
+    headers: supabaseHeader({ 'Content-Type': 'application/json' }),
+    body: JSON.stringify({
+      meldung_id: kontaktMeldung.id,
+      absender_email: email,
+      absender_name: name,
+      nachricht: nachricht,
+      website: website
+    }),
+    signal: controller.signal
+  }).then(function (antwort) {
+    return antwort.json().catch(function () { return {}; }).then(function (daten) {
+      if (!antwort.ok) {
+        const fehler = new Error('HTTP ' + antwort.status);
+        fehler.status = antwort.status;
+        fehler.daten = daten;
+        throw fehler;
+      }
+      return daten;
+    });
+  }).then(function () {
+    setzeKontaktStatus('Nachricht ist raus! Antwortet die Person, landet sie direkt in deinem Postfach. 📬', true);
+    setTimeout(schliesseKontaktDialog, 2400);
+  }).catch(function (fehler) {
+    if (fehler && fehler.daten && fehler.daten.fehler) {
+      setzeKontaktStatus(String(fehler.daten.fehler), false);
+    } else {
+      setzeKontaktStatus(FundbueroLogik.fehlerText(statusAus(fehler)), false);
+    }
+  }).finally(function () {
+    clearTimeout(timer);
+    setzeKontaktSendeZustand(false);
+  });
+}
+
+function verdrahteKontakt() {
+  const senden = document.getElementById('btnKontaktSenden');
+  if (senden) { senden.addEventListener('click', sendeKontaktAnfrage); }
+
+  const abbrechen = document.getElementById('btnKontaktAbbrechen');
+  if (abbrechen) { abbrechen.addEventListener('click', schliesseKontaktDialog); }
+
+  const formular = document.getElementById('kontaktFormular');
+  if (formular) {
+    formular.addEventListener('submit', function (ereignis) {
+      ereignis.preventDefault();
+      sendeKontaktAnfrage();
+    });
+  }
+
+  const dialog = document.getElementById('kontaktDialog');
+  if (dialog) {
+    dialog.addEventListener('close', function () { kontaktMeldung = null; });
+  }
+}
+
 // Eine Tastatur-Taste als echter <button type="button"> mit
 // Mockup-Farbklasse (Umlaute gelb, Satzzeichen grau, ⌫ rot).
 function erzeugeTaste(kappe) {
@@ -925,6 +1087,7 @@ function verdrahteEvents() {
 
   verdrahteComposer();
   verdrahteStandort(); // Task 7: Modus-Pills + Radius-Regler
+  verdrahteKontakt(); // Kontakt-Relay: Antwort-Dialog
 }
 
 /* ---------- 5. Init ---------- */

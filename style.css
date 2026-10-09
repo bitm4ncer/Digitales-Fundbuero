@@ -516,6 +516,76 @@ button:focus-visible, input:focus-visible, textarea:focus-visible {
   color: var(--blau-meta);
 }
 
+/* ---------- Kontakt-Relay: Antwort-Button + Dialog ---------- */
+
+.antwortBtn {
+  margin-left: auto;
+  align-self: flex-start;
+  flex-shrink: 0;
+  font-size: 10px;
+  font-weight: bold;
+  color: var(--aktion);
+  background: linear-gradient(#fff, #e8f1ff);
+  border: 1px solid var(--blau-rand2);
+  border-radius: 999px;
+  padding: 3px 10px;
+  cursor: pointer;
+}
+
+.kontaktDialog {
+  border: 2px solid var(--blau-rand2);
+  border-radius: 12px;
+  padding: 0;
+  max-width: 440px;
+  width: calc(100% - 32px);
+  color: var(--blau-text);
+  box-shadow: 0 10px 30px rgba(15, 61, 128, .35);
+}
+
+.kontaktDialog::backdrop { background: rgba(15, 61, 128, .45); }
+
+.kontaktDialog form { padding: 14px 16px 12px; }
+
+.kontaktTitel {
+  margin: 0 0 4px;
+  font-family: var(--wortmarke);
+  font-size: 16px;
+  color: var(--blau-text);
+}
+
+.kontaktHinweis {
+  margin: 0 0 8px;
+  font-size: 11px;
+  color: var(--blau-meta);
+}
+
+.kontaktFeld { display: block; margin-bottom: 6px; }
+
+.kontaktDialog textarea { min-height: 84px; resize: vertical; }
+
+.kontaktFuss {
+  display: flex;
+  gap: 6px;
+  justify-content: center;
+  margin-top: 8px;
+}
+
+.kontaktSenden {
+  color: var(--gelb-braun);
+  background: var(--verlauf-gelb);
+  border: 2px solid #fff;
+  box-shadow: 0 2px 0 #b58900;
+  padding: 3px 14px;
+}
+
+.honig {
+  position: absolute;
+  left: -9999px;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+}
+
 /* ---------- Absenden + Status ---------- */
 
 .composerFuss {
