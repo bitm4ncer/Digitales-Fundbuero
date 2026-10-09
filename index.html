@@ -9,7 +9,7 @@
   <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
   <!-- Asset-Version bei jedem CSS/JS-Deploy hochzählen (gegen Cache-Mixe) -->
-  <link rel="stylesheet" href="style.css?v=3">
+  <link rel="stylesheet" href="style.css?v=4">
 </head>
 <body>
   <div class="seite">
@@ -62,7 +62,29 @@
 
           <div class="composerZeile">
             <input id="eingabeName" class="composerFeld" type="text" maxlength="60" placeholder="Name (freiwillig)" aria-label="Name (freiwillig)">
-            <input id="eingabeKontakt" class="composerFeld" type="text" maxlength="200" placeholder="Kontakt (privat — nur für Antworten)" aria-label="Kontakt (privat — nur für Antworten, wird nie veröffentlicht)">
+          </div>
+
+          <!-- Kontaktweg: aktive, exklusive Wahl („offen" ODER „Postfach") -->
+          <div class="kontaktWahl" id="kontaktWahl" role="radiogroup" aria-label="Wie sollen dich Leute erreichen?">
+            <div class="kontaktWahlKopf">Wie sollen dich Leute erreichen?</div>
+            <label class="kontaktOption">
+              <input type="radio" name="kontaktModus" value="offen">
+              <span class="kontaktOptionText">
+                <b>📢 Offener Kontakt</b><br>
+                Deine Kontaktangabe steht im Eintrag. Antworten kommen direkt bei dir an (z. B. per E-Mail).
+              </span>
+            </label>
+            <label class="kontaktOption">
+              <input type="radio" name="kontaktModus" value="postfach">
+              <span class="kontaktOptionText">
+                <b>🕵️ Anonymes Postfach</b><br>
+                Keine Angaben nötig. Antworten landen NUR in deinem geheimen Postfach — den Link bekommst du nach dem Eintragen.
+              </span>
+            </label>
+          </div>
+
+          <div id="kontaktFeldBlock" hidden>
+            <input id="eingabeKontakt" class="composerFeld" type="text" maxlength="200" placeholder="Dein Kontakt — z. B. E-Mail, Telefon oder @instagram" aria-label="Dein Kontakt (wird im Eintrag angezeigt)">
           </div>
 
           <textarea id="eingabeText" class="composerFeld composerText" maxlength="500" placeholder="Gegenstand und Fundort beschreiben …" aria-label="Gegenstand und Fundort"></textarea>
@@ -120,7 +142,7 @@
 
     </main>
 
-    <footer class="fuss">© 2003–2026 Digitales Fundbüro · <a href="impressum.html">Impressum</a> · <a href="datenschutz.html">Datenschutz</a> · Du bist Besucher Nr. 0044711</footer>
+    <footer class="fuss">© 2003–2026 Digitales Fundbüro · <a href="impressum.html">Impressum</a> · <a href="datenschutz.html">Datenschutz</a> · <a href="postfach.html" id="postfachLink">📬 Mein Postfach</a> · Du bist Besucher Nr. 0044711</footer>
 
   </div>
 
@@ -134,6 +156,7 @@
           <span class="meldungNr"></span> · <span class="meldungVon"></span> · <span class="meldungDatum"></span>
           <span class="neuChip" hidden>NEU!</span>
         </div>
+        <div class="meldungKontakt" hidden></div>
       </div>
       <button type="button" class="antwortBtn" hidden>✉️ Antworten</button>
     </article>
@@ -156,9 +179,27 @@
     </form>
   </dialog>
 
-  <script src="config.js?v=3"></script>
-  <script src="logic.js?v=3"></script>
+  <!-- Postfach-Dialog: geheimer Link direkt nach dem Posten (Weg „Postfach") -->
+  <dialog id="postfachDialog" class="kontaktDialog" aria-label="Dein anonymes Postfach">
+    <div class="postfachBox">
+      <h3 class="kontaktTitel">📬 Dein Postfach ist bereit!</h3>
+      <p class="kontaktHinweis">
+        Antworten auf <b id="postfachNr">deine Meldung</b> landen NUR hier —
+        <b>bewahre den Link unbedingt auf!</b> Ohne ihn kommst du nicht mehr an die Nachrichten.
+      </p>
+      <div class="postfachLink" id="postfachLinkText"></div>
+      <div class="kontaktFuss">
+        <button type="button" id="btnPostfachKopieren" class="pill kontaktSenden">📋 Link kopieren</button>
+        <button type="button" id="btnPostfachMailen" class="pill">✉️ An mich selbst mailen</button>
+        <button type="button" id="btnPostfachFertig" class="pill">Fertig</button>
+      </div>
+      <div id="postfachStatus" class="formStatus" role="status" aria-live="polite"></div>
+    </div>
+  </dialog>
+
+  <script src="config.js?v=4"></script>
+  <script src="logic.js?v=4"></script>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <script src="app.js?v=3"></script>
+  <script src="app.js?v=4"></script>
 </body>
 </html>

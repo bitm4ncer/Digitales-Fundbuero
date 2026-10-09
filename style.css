@@ -586,6 +586,106 @@ button:focus-visible, input:focus-visible, textarea:focus-visible {
   opacity: 0;
 }
 
+/* ---------- Kontaktweg: aktive Wahl (offen / Postfach) ---------- */
+
+.kontaktWahl { margin: 4px 0 8px; }
+
+.kontaktWahlKopf {
+  font-size: 11px;
+  font-weight: bold;
+  color: var(--blau-text);
+  margin-bottom: 4px;
+}
+
+.kontaktOption {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  background: #fff;
+  border: 2px solid var(--blau-rand);
+  border-radius: 10px;
+  padding: 7px 10px;
+  margin-bottom: 6px;
+  cursor: pointer;
+}
+
+.kontaktOption input { margin-top: 2px; flex-shrink: 0; }
+
+.kontaktOptionText {
+  font-size: 11px;
+  color: var(--blau-meta);
+  line-height: 1.45;
+}
+
+.kontaktOptionText b { color: var(--blau-text); }
+
+.kontaktOption:has(input:checked) {
+  border-color: var(--aktion);
+  background: linear-gradient(#f2f8ff, #e8f1ff);
+}
+
+#kontaktFeldBlock { margin-bottom: 6px; }
+
+/* Kontaktzeile auf der Feed-Karte (nur beim offenen Weg) */
+.meldungKontakt {
+  margin-top: 4px;
+  font-size: 11px;
+  color: var(--blau-text);
+  overflow-wrap: anywhere;
+}
+
+.meldungKontakt a { color: var(--aktion); }
+
+/* Postfach-Dialog nach dem Posten */
+.postfachBox { padding: 14px 16px 12px; }
+
+.postfachLink {
+  background: #fff;
+  border: 2px dashed var(--blau-rand2);
+  border-radius: 8px;
+  padding: 8px 10px;
+  margin-bottom: 4px;
+  font-family: 'Courier New', monospace;
+  font-size: 12px;
+  color: var(--blau-text);
+  overflow-wrap: anywhere;
+}
+
+/* ---------- Postfach-Seite ---------- */
+
+.postfachZugang {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.postfachZugang .composerFeld { flex: 1; }
+
+.postfachItem {
+  background: #fff;
+  border: 1px solid var(--blau-rand);
+  border-radius: 10px;
+  padding: 8px 10px;
+  margin-bottom: 8px;
+}
+
+.postfachMeta {
+  font-size: 11px;
+  color: var(--blau-meta);
+  margin-bottom: 4px;
+  overflow-wrap: anywhere;
+}
+
+.postfachMeta a { color: var(--aktion); }
+
+.postfachText {
+  color: var(--blau-text);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.postfachItem .pill { margin-top: 6px; }
+
 /* ---------- Absenden + Status ---------- */
 
 .composerFuss {

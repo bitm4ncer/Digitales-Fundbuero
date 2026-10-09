@@ -1,4 +1,9 @@
-# Kontakt-Relay einrichten („✉️ Antworten")
+# Kontakt-Relay einrichten („✉️ Antworten") — ALTERNATIVE, derzeit nicht in Betrieb
+
+> ⚠️ **Nicht mehr der aktive Weg.** Das Kontakt-System läuft jetzt über das
+> **anonyme Postfach** (siehe `docs/supabase-setup.sql`, Abschnitt 4, und
+> `postfach.html`). Diese Anleitung bleibt als Alternative erhalten, falls
+> später doch E-Mail-Benachrichtigungen gewünscht sind.
 
 Damit Antworten auf Meldungen per E-Mail beim Poster landen, ohne dass dessen
 Kontaktdaten öffentlich werden. Einmalig, ca. 10 Minuten.

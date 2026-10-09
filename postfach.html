@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title>Mein Postfach — Digitales Fundbüro</title>
+  <meta name="description" content="Dein geheimes Postfach im Digitalen Fundbüro: Antworten auf deine Meldungen lesen und löschen.">
+  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="style.css?v=4">
+</head>
+<body>
+  <div class="seite">
+
+    <!-- Schlanker Kopf: nur Wortmarke -->
+    <header class="kopf kopfSchlank">
+      <div class="kopfInnen">
+        <img class="lupe" src="assets/lupe.svg" width="46" height="46" alt="Fundbüro-Lupe">
+        <div class="wortmarke">
+          <div class="wortmarkeKlein">D I G I T A L E S</div>
+          <div class="wortmarkeGross">FUNDBÜRO</div>
+        </div>
+      </div>
+    </header>
+
+    <div class="ticker"><a href="index.html">★ ← Zurück zur Pinnwand ★</a></div>
+
+    <main class="rechtMain">
+      <article class="rechtInhalt">
+        <h1>📬 Mein Postfach</h1>
+
+        <p>
+          Hier liest du Antworten auf deine Meldungen — nur mit deinem geheimen Postfach-Link.
+          Füge den Code (oder den kompletten Link) ein, falls du ihn gerade nicht als Lesezeichen hast.
+        </p>
+
+        <div class="postfachZugang">
+          <input id="tokenFeld" class="composerFeld" type="text" maxlength="120" placeholder="Postfach-Code oder Link einfügen …" aria-label="Postfach-Code">
+          <button type="button" id="btnTokenOeffnen" class="pill pillAktion">Öffnen</button>
+        </div>
+
+        <div id="postfachStatus" class="formStatus" role="status" aria-live="polite"></div>
+
+        <div id="postfachMeine"></div>
+        <div id="postfachListe"></div>
+
+        <p class="rechtKlein">
+          Tipp: Den Postfach-Link bekommst du direkt nach dem Eintragen — er wird zusätzlich in
+          diesem Browser gemerkt. Ohne den Link gibt es keinen Zugriff (das ist Absicht!).
+        </p>
+      </article>
+    </main>
+
+    <footer class="fuss">© 2003–2026 Digitales Fundbüro · <a href="index.html">Startseite</a> · <a href="impressum.html">Impressum</a> · <a href="datenschutz.html">Datenschutz</a></footer>
+
+  </div>
+
+  <script src="config.js?v=4"></script>
+  <script src="logic.js?v=4"></script>
+  <script src="postfach.js?v=4"></script>
+</body>
+</html>

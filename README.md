@@ -7,7 +7,7 @@ Statische Y2K-Webseite, auf der Fundbüro-Meldungen („Verloren“ / „Gefunde
 - Feed mit Filtern `Alle · Verloren · Gefunden · Verschenken` und sticky Karten-Sidebar (mobil einklappbar via „🗺️ Karte anzeigen")
 - Posten-Formular mit optionalem Standort (genauer Punkt oder Bereich, Ortssuche per OpenStreetMap/Nominatim) und Bildschirmtastatur
 - Karte mit farbigen Pins und Bereichs-Kreisen (Leaflet/OSM)
-- „✉️ Antworten" auf Meldungen: Nachricht geht per E-Mail an den Poster, Kontaktdaten bleiben privat (Kontakt-Relay, siehe `docs/kontakt-relay-setup.md`)
+- „✉️ Antworten" auf Meldungen: **offener Kontakt im Eintrag ODER anonymes Postfach** mit geheimem Link (aktive Wahl, kein Mail-Dienst nötig)
 - Impressum, Datenschutz-Minimum und Fundpflicht-Disclaimer
 
 ## Lokal entwickeln

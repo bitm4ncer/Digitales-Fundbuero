@@ -148,11 +148,11 @@ function versteckeStatusHinweis() {
   hinweis.hidden = true;
 }
 
-// Spalten fürs Laden. „hat_kontakt" stammt aus dem Kontakt-Relay-Setup
-// (docs/supabase-setup.sql, Schritt 4): fehlt die Spalte noch, fällt die App
-// einmalig auf die Basisspalten zurück — Antwort-Knöpfe bleiben dann aus.
+// Spalten fürs Laden. kontakt/kontakt_modus stammen aus dem Kontakt-Setup
+// (docs/supabase-setup.sql, Schritt 4): fehlen sie noch, fällt die App
+// einmalig auf die Basisspalten zurück — Kontaktzeile/Knopf bleiben dann aus.
 const FELDER_BASIS = 'id,created_at,art,text,name,lat,lng,radius_m';
-const FELDER_MIT_KONTAKT = FELDER_BASIS + ',hat_kontakt';
+const FELDER_KONTAKT = FELDER_BASIS + ',kontakt,kontakt_modus';
 
 function holeMeldungen(felder) {
   const controller = new AbortController();
@@ -179,8 +179,8 @@ function ladeMeldungen() {
     return Promise.resolve();
   }
 
-  return holeMeldungen(FELDER_MIT_KONTAKT).catch(function (fehler) {
-    // Spalte „hat_kontakt" existiert noch nicht (z. B. vor dem Setup-SQL):
+  return holeMeldungen(FELDER_KONTAKT).catch(function (fehler) {
+    // Kontakt-Spalten fehlen noch (z. B. vor dem Setup-SQL):
     // einmalig ohne sie erneut laden — der Rest bleibt ganz normal.
     if (fehler && fehler.status === 400) {
       return holeMeldungen(FELDER_BASIS);
@@ -196,9 +196,10 @@ function ladeMeldungen() {
   });
 }
 
-// Task 5: POST einer validierten Meldung. Body exakt art, text, name,
-// kontakt, lat, lng, radius_m — leere Optionals und fehlender Standort
-// (Task 7) sind null. Prefer: return=minimal, Antwort hat keinen Body.
+// Task 5: POST einer validierten Meldung. Body: art, text, name, kontakt,
+// kontakt_modus, postfach_token, lat, lng, radius_m — leere Optionals und
+// fehlender Standort (Task 7) sind null. return=representation + select=id,
+// damit wir die neue Nr. fürs Postfach (und die Erfolgsanzeige) kennen.
 function postMeldung(daten) {
   const standort = state.composer.standort;
   const koerper = {
@@ -206,6 +207,8 @@ function postMeldung(daten) {
     text: daten.text,
     name: daten.name,
     kontakt: daten.kontakt,
+    kontakt_modus: daten.kontakt_modus,
+    postfach_token: daten.postfach_token,
     lat: standort ? standort.lat : null,
     lng: standort ? standort.lng : null,
     radius_m: standort ? standort.radius_m : null
@@ -214,14 +217,17 @@ function postMeldung(daten) {
   const controller = new AbortController();
   const timer = setTimeout(function () { controller.abort(); }, FETCH_TIMEOUT_MS);
 
-  return fetch(supabaseBasis() + '/rest/v1/meldungen', {
+  return fetch(supabaseBasis() + '/rest/v1/meldungen?select=id', {
     method: 'POST',
-    headers: supabaseHeader({ 'Content-Type': 'application/json', Prefer: 'return=minimal' }),
+    headers: supabaseHeader({ 'Content-Type': 'application/json', Prefer: 'return=representation' }),
     body: JSON.stringify(koerper),
     signal: controller.signal
   }).then(function (antwort) {
     if (!antwort.ok) { throw httpFehler(antwort.status); }
-    return null;
+    return antwort.json();
+  }).then(function (reihe) {
+    const id = Array.isArray(reihe) && reihe[0] ? reihe[0].id : null;
+    return { id: id };
   }).finally(function () {
     clearTimeout(timer); // Timer auch bei Erfolg/HTTP-Fehler aufräumen
   });
@@ -287,10 +293,25 @@ function baueKarte(meldung, vorlage) {
   karte.querySelector('.meldungVon').textContent = 'von ' + (name || 'Anonym');
   karte.querySelector('.meldungDatum').textContent = FundbueroLogik.formatDatum(meldung.created_at);
 
-  // Kontakt-Relay: „✉️ Antworten" nur für Meldungen mit hinterlegtem Kontakt
-  // (Flag kommt aus der DB; fehlt es noch, bleibt der Knopf versteckt).
+  // Kontaktweg (exklusiv, aktive Wahl des Posters):
+  // „offen" → Kontaktangabe steht auf der Karte; „postfach" → Antwort-Knopf.
+  const kontaktZeile = karte.querySelector('.meldungKontakt');
   const antwort = karte.querySelector('.antwortBtn');
-  if (antwort && meldung.hat_kontakt === true) {
+  if (meldung.kontakt_modus === 'offen') {
+    const offen = String(meldung.kontakt == null ? '' : meldung.kontakt).trim();
+    if (kontaktZeile && offen) {
+      kontaktZeile.hidden = false;
+      kontaktZeile.appendChild(document.createTextNode('📢 Kontakt: '));
+      if (FundbueroLogik.istGueltigeEmail(offen)) {
+        const link = document.createElement('a');
+        link.href = 'mailto:' + offen;
+        link.textContent = offen;
+        kontaktZeile.appendChild(link);
+      } else {
+        kontaktZeile.appendChild(document.createTextNode(offen));
+      }
+    }
+  } else if (meldung.kontakt_modus === 'postfach' && antwort) {
     antwort.hidden = false;
     antwort.addEventListener('click', function () { oeffneKontaktDialog(meldung); });
   }
@@ -704,15 +725,17 @@ function sendeKontaktAnfrage() {
   const controller = new AbortController();
   const timer = setTimeout(function () { controller.abort(); }, FETCH_TIMEOUT_MS);
 
-  fetch(supabaseBasis() + '/functions/v1/kontakt-relay', {
+  // Direkt in die Datenbank: die RPC „nachricht_senden" macht Gate, Log,
+  // Drossel & Sperrliste serverseitig — kein Mail-Dienst, kein Dritter.
+  fetch(supabaseBasis() + '/rest/v1/rpc/nachricht_senden', {
     method: 'POST',
     headers: supabaseHeader({ 'Content-Type': 'application/json' }),
     body: JSON.stringify({
-      meldung_id: kontaktMeldung.id,
-      absender_email: email,
-      absender_name: name,
-      nachricht: nachricht,
-      website: website
+      p_meldung_id: kontaktMeldung.id,
+      p_name: name,
+      p_email: email,
+      p_nachricht: nachricht,
+      p_honig: website
     }),
     signal: controller.signal
   }).then(function (antwort) {
@@ -725,8 +748,12 @@ function sendeKontaktAnfrage() {
       }
       return daten;
     });
-  }).then(function () {
-    setzeKontaktStatus('Nachricht ist raus! Antwortet die Person, landet sie direkt in deinem Postfach. 📬', true);
+  }).then(function (daten) {
+    if (daten && daten.ok === false) {
+      setzeKontaktStatus(String(daten.fehler || 'Da hat was geklemmt — nochmal probieren.'), false);
+      return;
+    }
+    setzeKontaktStatus('Nachricht ist raus! Die Person liest sie in ihrem Postfach und meldet sich bei dir. 📬', true);
     setTimeout(schliesseKontaktDialog, 2400);
   }).catch(function (fehler) {
     if (fehler && fehler.daten && fehler.daten.fehler) {
@@ -759,6 +786,145 @@ function verdrahteKontakt() {
   if (dialog) {
     dialog.addEventListener('close', function () { kontaktMeldung = null; });
   }
+
+  // Aktive Kontaktweg-Wahl: Kontaktfeld nur beim offenen Weg einblenden.
+  const wahl = document.getElementById('kontaktWahl');
+  if (wahl) {
+    wahl.addEventListener('change', aktualisiereKontaktFeld);
+  }
+  aktualisiereKontaktFeld();
+}
+
+/* ---------- Postfach (geheimer Link nach dem Posten) ---------- */
+
+const POSTFACH_KEY = 'fundbueroPostfaecher';
+
+// UUID fürs geheime Postfach — vom Browser erzeugt; sie verlässt den Rechner
+// nur als Teil des eigenen Links (und einmal beim Eintragen in die DB).
+function neuerPostfachToken() {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
+  }
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+    const r = Math.floor(Math.random() * 16);
+    const v = c === 'x' ? r : ((r & 0x3) | 0x8);
+    return v.toString(16);
+  });
+}
+
+function lesePostfaecher() {
+  try {
+    const roh = localStorage.getItem(POSTFACH_KEY);
+    const liste = roh ? JSON.parse(roh) : [];
+    return Array.isArray(liste) ? liste : [];
+  } catch (e) {
+    return [];
+  }
+}
+
+function speicherePostfach(eintrag) {
+  const liste = lesePostfaecher();
+  liste.unshift(eintrag);
+  try {
+    localStorage.setItem(POSTFACH_KEY, JSON.stringify(liste.slice(0, 50)));
+  } catch (e) {
+    /* Speicher voll/gesperrt — dann zählt nur der kopierte Link. */
+  }
+  aktualisierePostfachLink();
+}
+
+// Footer-Link: „📬 Mein Postfach" bzw. „📬 Meine Postfächer (n)".
+function aktualisierePostfachLink() {
+  const link = document.getElementById('postfachLink');
+  if (!link) { return; }
+  const anzahl = lesePostfaecher().length;
+  link.textContent = anzahl > 0 ? ('📬 Meine Postfächer (' + anzahl + ')') : '📬 Mein Postfach';
+}
+
+let aktuellePostfachUrl = '';
+
+function zeigePostfachDialog(id, token, text) {
+  const dialog = document.getElementById('postfachDialog');
+  if (!dialog || !token) { return; }
+
+  const url = new URL('postfach.html', window.location.href).href + '#' + token;
+  aktuellePostfachUrl = url;
+
+  const nrText = id != null
+    ? 'Nr. ' + FundbueroLogik.formatNummer(id, new Date().toISOString())
+    : 'deine Meldung';
+  const nrEl = document.getElementById('postfachNr');
+  if (nrEl) { nrEl.textContent = nrText; }
+  const linkEl = document.getElementById('postfachLinkText');
+  if (linkEl) { linkEl.textContent = url; }
+  setzePostfachStatus('', false);
+
+  speicherePostfach({
+    token: token,
+    id: id,
+    nr: nrText,
+    titel: String(text || '').slice(0, 60),
+    datum: new Date().toISOString()
+  });
+
+  if (typeof dialog.showModal === 'function') { dialog.showModal(); }
+  else { dialog.setAttribute('open', ''); }
+}
+
+function setzePostfachStatus(text, erfolg) {
+  const status = document.getElementById('postfachStatus');
+  if (!status) { return; }
+  status.textContent = text;
+  status.classList.toggle('ok', !!erfolg);
+}
+
+function kopierePostfachLink() {
+  if (!aktuellePostfachUrl) { return; }
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(aktuellePostfachUrl)
+      .then(function () { setzePostfachStatus('Link kopiert! Speicher ihn gut. 📋', true); })
+      .catch(function () { setzePostfachStatus('Kopieren ging nicht — bitte markier den Link von Hand.', false); });
+  } else {
+    setzePostfachStatus('Kopieren geht hier nicht — bitte markier den Link von Hand.', false);
+  }
+}
+
+// „An mich selbst mailen": öffnet das eigene Mailprogramm mit dem Link —
+// Empfänger trägt man selbst ein. Kein Dienst dazwischen.
+function mailePostfachLink() {
+  if (!aktuellePostfachUrl) { return; }
+  const betreff = encodeURIComponent('Mein Postfach im Digitalen Fundbüro');
+  const rumpf = encodeURIComponent(
+    'Hier ist mein geheimer Postfach-Link — gut aufbewahren!\n\n' + aktuellePostfachUrl
+  );
+  window.location.href = 'mailto:?subject=' + betreff + '&body=' + rumpf;
+}
+
+// Kontaktweg-Wahl: Kontaktfeld nur beim offenen Weg einblenden.
+function aktualisiereKontaktFeld() {
+  const gewaehlt = document.querySelector('#kontaktWahl input[name="kontaktModus"]:checked');
+  const block = document.getElementById('kontaktFeldBlock');
+  if (block) { block.hidden = !(gewaehlt && gewaehlt.value === 'offen'); }
+}
+
+function verdrahtePostfach() {
+  const kopieren = document.getElementById('btnPostfachKopieren');
+  if (kopieren) { kopieren.addEventListener('click', kopierePostfachLink); }
+
+  const mailen = document.getElementById('btnPostfachMailen');
+  if (mailen) { mailen.addEventListener('click', mailePostfachLink); }
+
+  const fertig = document.getElementById('btnPostfachFertig');
+  if (fertig) {
+    fertig.addEventListener('click', function () {
+      const dialog = document.getElementById('postfachDialog');
+      if (!dialog) { return; }
+      if (typeof dialog.close === 'function' && dialog.open) { dialog.close(); }
+      else { dialog.removeAttribute('open'); }
+    });
+  }
+
+  aktualisierePostfachLink();
 }
 
 // Eine Tastatur-Taste als echter <button type="button"> mit
@@ -898,8 +1064,9 @@ function setzeSendeZustand(aktiv) {
   if (button) { button.disabled = aktiv; }
 }
 
-// Erfolg: Felder leeren, Art zurück auf VERLOREN, Zähler 0/500 und Standort
-// vergessen (Task 7: Modus Bereich, 300 m, Pin/Kreis auf Deutschland-Default).
+// Erfolg: Felder leeren, Art zurück auf VERLOREN, Zähler 0/500, Standort
+// vergessen (Task 7: Modus Bereich, 300 m, Pin/Kreis auf Deutschland-Default)
+// und die Kontaktweg-Wahl zurücksetzen (aktive Wahl bleibt bewusst offen).
 function leereFormular() {
   const feldText = document.getElementById('eingabeText');
   const feldName = document.getElementById('eingabeName');
@@ -907,19 +1074,27 @@ function leereFormular() {
   if (feldText) { feldText.value = ''; }
   if (feldName) { feldName.value = ''; }
   if (feldKontakt) { feldKontakt.value = ''; }
+  document.querySelectorAll('#kontaktWahl input[name="kontaktModus"]').forEach(function (radio) {
+    radio.checked = false;
+  });
+  aktualisiereKontaktFeld();
   setArt('verloren');
   setzeStandortZurueck();
   aktualisiereZaehler();
 }
 
-// Task 5: POST + Erfolgs-/Fehlerfluss. Erfolg räumt das Formular,
-// zeigt die Erfolgszeile und lädt frisch vom Amt (neue Nr. sofort oben).
+// Task 5: POST + Erfolgs-/Fehlerfluss. Erfolg räumt das Formular, zeigt die
+// Erfolgszeile, lädt frisch vom Amt — und beim Postfach-Weg zusätzlich den
+// Postfach-Dialog mit dem geheimen Link.
 function sendeMeldung(daten) {
   setzeSendeZustand(true);
   postMeldung(daten)
-    .then(function () {
+    .then(function (ergebnis) {
       leereFormular();
       zeigeFormStatus('Eingetragen! Die Lupe macht sich auf die Suche. 🔍', true);
+      if (daten.kontakt_modus === 'postfach' && daten.postfach_token) {
+        zeigePostfachDialog(ergebnis ? ergebnis.id : null, daten.postfach_token, daten.text);
+      }
       return ladeMeldungen();
     })
     .catch(function (fehler) {
@@ -930,7 +1105,7 @@ function sendeMeldung(daten) {
     });
 }
 
-// Task 4/5: validieren, Fehler zeigen — sonst an Supabase senden.
+// Task 4/5 + Kontaktweg: validieren, Fehler zeigen — sonst an Supabase senden.
 function verarbeiteAbsenden() {
   if (sendet) { return; } // Es läuft bereits ein Request — nichts doppelt senden.
 
@@ -951,12 +1126,35 @@ function verarbeiteAbsenden() {
     return;
   }
 
+  // Kontaktweg ist eine aktive Entscheidung — ohne Wahl geht nichts raus.
+  const gewaehlt = document.querySelector('#kontaktWahl input[name="kontaktModus"]:checked');
+  const kontaktModus = gewaehlt ? gewaehlt.value : '';
+  if (!kontaktModus) {
+    zeigeFormStatus('Bitte wähle erst, wie man dich erreichen soll: „Offener Kontakt" oder „Anonymes Postfach".', false);
+    return;
+  }
+  if (kontaktModus === 'offen' && String(ergebnis.daten.kontakt || '').trim().length < 3) {
+    zeigeFormStatus('Beim offenen Kontakt brauchen wir eine Angabe (z. B. E-Mail) — sonst kann dich niemand erreichen.', false);
+    if (feldKontakt) { feldKontakt.focus(); }
+    return;
+  }
+
   zeigeFormStatus('', false); // alte Fehler wegräumen
   if (!istKonfiguriert()) {
     zeigeFormStatus('Das Amt ist noch nicht angeschlossen … Bald geht\'s los!', false);
     return;
   }
-  sendeMeldung(ergebnis.daten); // { art, text, name, kontakt } + Standort (Task 7)
+
+  // Exklusiver Weg: „offen" → Kontakt wird angezeigt; „postfach" → Token fürs
+  // geheime Postfach (Kontakt wird gar nicht erst mitgeschickt).
+  sendeMeldung({
+    art: ergebnis.daten.art,
+    text: ergebnis.daten.text,
+    name: ergebnis.daten.name,
+    kontakt: kontaktModus === 'offen' ? ergebnis.daten.kontakt : null,
+    kontakt_modus: kontaktModus,
+    postfach_token: kontaktModus === 'postfach' ? neuerPostfachToken() : null
+  });
 }
 
 // Verdrahtet Tastatur, Zähler, Art-Pills und den Submit-Pfad.
@@ -1087,7 +1285,8 @@ function verdrahteEvents() {
 
   verdrahteComposer();
   verdrahteStandort(); // Task 7: Modus-Pills + Radius-Regler
-  verdrahteKontakt(); // Kontakt-Relay: Antwort-Dialog
+  verdrahteKontakt(); // Antwort-Dialog + aktive Kontaktweg-Wahl
+  verdrahtePostfach(); // Postfach-Dialog + Footer-Link
 }
 
 /* ---------- 5. Init ---------- */
